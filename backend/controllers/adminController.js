@@ -138,3 +138,73 @@ exports.getAnalytics = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @desc    Enroll a student in a course
+ * @route   PUT /api/admin/users/:userId/enroll
+ * @access  Private/Admin
+ */
+exports.enrollStudent = async (req, res, next) => {
+  try {
+    const { courseId } = req.body;
+    const user = await User.findById(req.params.userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Student not found.' });
+    }
+
+    if (!courseId) {
+      return res.status(400).json({ success: false, message: 'Course ID is required.' });
+    }
+
+    const isAlreadyEnrolled = user.enrolledCourses?.some(id => id.toString() === courseId.toString());
+    if (isAlreadyEnrolled) {
+      return res.status(400).json({ success: false, message: 'Student is already enrolled in this course.' });
+    }
+
+    if (!user.enrolledCourses) user.enrolledCourses = [];
+    user.enrolledCourses.push(courseId);
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully enrolled ${user.name} in course.`,
+      data: user
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Unenroll a student from a course
+ * @route   PUT /api/admin/users/:userId/unenroll
+ * @access  Private/Admin
+ */
+exports.unenrollStudent = async (req, res, next) => {
+  try {
+    const { courseId } = req.body;
+    const user = await User.findById(req.params.userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Student not found.' });
+    }
+
+    if (!courseId) {
+      return res.status(400).json({ success: false, message: 'Course ID is required.' });
+    }
+
+    user.enrolledCourses = user.enrolledCourses?.filter(
+      id => id.toString() !== courseId.toString()
+    ) || [];
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully unenrolled ${user.name} from course.`,
+      data: user
+    });
+  } catch (error) {
+    next(error);
+  }
+};

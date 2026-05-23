@@ -111,9 +111,6 @@ export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title }) => {
       <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-xl bg-slate-900/40 border border-slate-850">
         <div>
           <h2 className="text-lg font-bold text-slate-100">{title || 'Playing Lecture'}</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Google Drive playback engine active. Direct download links shielded.
-          </p>
         </div>
 
         <button
@@ -128,10 +125,6 @@ export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title }) => {
           {isCompleted ? 'Marked Completed' : 'Mark Completed'}
         </button>
       </div>
-
-      <p className="text-[10px] text-slate-600 text-right mt-2 italic">
-        * No client-side protection is 100% secure against screen recording. Skillvora uses watermark tracking and URL tokens.
-      </p>
     </div>
   );
 };

@@ -104,6 +104,16 @@ export const CourseDetails = () => {
       );
     }
 
+    // Check if student is enrolled in this specific course
+    const isEnrolled = user.enrolledCourses?.some(id => (id._id || id) === course._id);
+    if (user.role !== 'admin' && !isEnrolled) {
+      return (
+        <div className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-550 dark:text-slate-400 py-3 rounded-xl font-bold text-center text-sm shadow-inner">
+          Not Enrolled (Contact Admin)
+        </div>
+      );
+    }
+
     if (user.status === 'pending') {
       return (
         <div className="w-full bg-amber-500/10 border border-amber-500/20 text-amber-400 py-3 rounded-xl font-bold text-center text-sm shadow-inner">

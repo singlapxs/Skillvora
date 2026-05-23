@@ -37,6 +37,10 @@ const UserSchema = new mongoose.Schema({
   approvedAt: {
     type: Date
   },
+  enrolledCourses: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course'
+  }],
   createdAt: {
     type: Date,
     default: Date.now

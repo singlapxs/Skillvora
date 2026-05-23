@@ -5,7 +5,9 @@ const {
   approveUser, 
   rejectUser, 
   getAllUsers, 
-  getAnalytics 
+  getAnalytics,
+  enrollStudent,
+  unenrollStudent
 } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middleware/auth');
 
@@ -18,5 +20,7 @@ router.put('/approve/:id', approveUser);
 router.put('/reject/:id', rejectUser);
 router.get('/users', getAllUsers);
 router.get('/analytics', getAnalytics);
+router.put('/users/:userId/enroll', enrollStudent);
+router.put('/users/:userId/unenroll', unenrollStudent);
 
 module.exports = router;

@@ -76,7 +76,8 @@ exports.register = async (req, res, next) => {
         email: user.email,
         role: user.role,
         status: user.status,
-        isApproved: user.isApproved
+        isApproved: user.isApproved,
+        enrolledCourses: user.enrolledCourses || []
       }
     });
   } catch (error) {
@@ -145,7 +146,8 @@ exports.login = async (req, res, next) => {
         email: user.email,
         role: user.role,
         status: user.status,
-        isApproved: user.isApproved
+        isApproved: user.isApproved,
+        enrolledCourses: user.enrolledCourses || []
       }
     });
   } catch (error) {

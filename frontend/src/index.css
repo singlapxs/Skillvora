@@ -4,7 +4,16 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 antialiased font-sans selection:bg-violet-600 selection:text-white;
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased font-sans selection:bg-violet-600 selection:text-white transition-colors duration-200;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-slate-900 dark:text-slate-50;
+  }
+  p {
+    @apply text-slate-600 dark:text-slate-450;
+  }
+  select, input, textarea {
+    @apply bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 placeholder-slate-400 dark:placeholder-slate-600 focus:border-violet-500 focus:outline-none transition-all;
   }
 }
 
@@ -49,11 +58,11 @@
 
 /* Glassmorphism Classes */
 .glass-panel {
-  @apply bg-slate-900/60 backdrop-blur-md border border-slate-800/80;
+  @apply bg-white/70 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80;
 }
 
 .glass-card {
-  @apply bg-gradient-to-br from-slate-900/80 to-slate-950/80 backdrop-blur-md border border-slate-800/60 hover:border-slate-700/80 transition-all duration-300;
+  @apply bg-gradient-to-br from-white/90 to-slate-50/90 dark:from-slate-900/80 dark:to-slate-950/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/60 hover:border-slate-400/80 dark:hover:border-slate-700/80 transition-all duration-300;
 }
 
 /* Shimmer Loader Keyframes */

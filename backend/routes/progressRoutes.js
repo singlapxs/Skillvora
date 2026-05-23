@@ -6,15 +6,15 @@ const {
   updateResumeWatch,
   getStudentDashboard
 } = require('../controllers/progressController');
-const { protect, approvedUsersOnly } = require('../middleware/auth');
+const { protect, approvedUsersOnly, enrolledStudentsOnly } = require('../middleware/auth');
 
 // All progress routes require validation and active student approval status
 router.use(protect);
 router.use(approvedUsersOnly);
 
 router.get('/dashboard', getStudentDashboard); // Must be before /:courseId
-router.get('/:courseId', getProgress);
-router.post('/:courseId/lecture/:lectureId/toggle', toggleLectureComplete);
-router.post('/:courseId/resume', updateResumeWatch);
+router.get('/:courseId', enrolledStudentsOnly, getProgress);
+router.post('/:courseId/lecture/:lectureId/toggle', enrolledStudentsOnly, toggleLectureComplete);
+router.post('/:courseId/resume', enrolledStudentsOnly, updateResumeWatch);
 
 module.exports = router;

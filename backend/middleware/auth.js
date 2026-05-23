@@ -82,8 +82,41 @@ const adminOnly = (req, res, next) => {
   }
 };
 
+/**
+ * Limit watch and progress checkouts to enrolled students only
+ */
+const enrolledStudentsOnly = async (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Not authenticated.' });
+  }
+
+  // Admins bypass course enrollment checks
+  if (req.user.role === 'admin') {
+    return next();
+  }
+
+  const courseId = req.params.courseId || req.body.courseId;
+  if (!courseId) {
+    return res.status(400).json({ success: false, message: 'Course ID context is required.' });
+  }
+
+  const isEnrolled = req.user.enrolledCourses?.some(
+    (id) => id.toString() === courseId.toString()
+  );
+
+  if (!isEnrolled) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access Denied. You are not enrolled in this course. Please contact the administrator.'
+    });
+  }
+
+  next();
+};
+
 module.exports = {
   protect,
   approvedUsersOnly,
-  adminOnly
+  adminOnly,
+  enrolledStudentsOnly
 };
