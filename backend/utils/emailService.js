@@ -13,21 +13,48 @@ const {
  * Utilizes Gmail SMTP by default, with custom fallback support.
  */
 const createTransporter = () => {
-  const emailUser = process.env.EMAIL_USER;
-  const emailPass = process.env.EMAIL_PASS;
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = process.env.SMTP_PORT || 587;
+  const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
+  const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
 
-  if (!emailUser || !emailPass || emailUser === 'admin@example.com') {
-    console.warn('[Email System] Warning: EMAIL_USER or EMAIL_PASS not configured. Emails will be logged to console only.');
-    return null;
+  // Fallback to Gmail if SMTP_HOST is not configured
+  if (!smtpHost) {
+    if (!smtpUser || !smtpPass || smtpUser === 'admin@example.com') {
+      console.warn('[Email System] Warning: SMTP credentials not configured. Emails will be logged to console only.');
+      return null;
+    }
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: smtpUser,
+        pass: smtpPass
+      }
+    });
   }
 
+  // Use custom SMTP server (highly recommended for cloud environments like Render)
+  console.log(`[Email System] Initializing custom SMTP transport: ${smtpHost}:${smtpPort}`);
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: smtpHost,
+    port: parseInt(smtpPort),
+    secure: smtpPort == 465, // true for 465, false for 587/2525
     auth: {
-      user: emailUser,
-      pass: emailPass
+      user: smtpUser,
+      pass: smtpPass
+    },
+    tls: {
+      rejectUnauthorized: false // Prevents SSL connection handshakes from failing on Render
     }
   });
+};
+
+/**
+ * Resolves the sender email address dynamically.
+ * Fallback order: EMAIL_USER -> SMTP_USER -> no-reply@skillvora.com
+ */
+const getSenderEmail = () => {
+  return process.env.EMAIL_USER || process.env.SMTP_USER || 'no-reply@skillvora.com';
 };
 
 /**
@@ -52,7 +79,7 @@ const sendAdminNotification = async (studentName, studentEmail) => {
 
   try {
     const info = await transporter.sendMail({
-      from: `"Skillvora Academy" <${process.env.EMAIL_USER}>`,
+      from: `"Skillvora Academy" <${getSenderEmail()}>`,
       to: adminEmail,
       subject: `[Skillvora] New Student Registration Pending: ${studentName}`,
       html: htmlContent
@@ -86,7 +113,7 @@ const sendApprovalConfirmation = async (studentName, studentEmail) => {
 
   try {
     const info = await transporter.sendMail({
-      from: `"Skillvora Academy" <${process.env.EMAIL_USER}>`,
+      from: `"Skillvora Academy" <${getSenderEmail()}>`,
       to: studentEmail,
       subject: `[Skillvora] Your Enrollment Request has been Approved!`,
       html: htmlContent
@@ -117,7 +144,7 @@ const sendRejectionNotification = async (studentName, studentEmail) => {
 
   try {
     const info = await transporter.sendMail({
-      from: `"Skillvora Academy" <${process.env.EMAIL_USER}>`,
+      from: `"Skillvora Academy" <${getSenderEmail()}>`,
       to: studentEmail,
       subject: `[Skillvora] Enrollment Request Update`,
       html: htmlContent
@@ -138,7 +165,7 @@ const sendCourseRequestNotification = async (studentName, studentEmail, courseTi
 
   const htmlContent = courseRequestAdminTemplate(studentName, studentEmail, courseTitle, approvalLink);
 
-  console.log(`[Email Service] Attempting to send course request notification. Student: "${studentName}" (${studentEmail}), Course: "${courseTitle}". Sender Account: "${process.env.EMAIL_USER}", Admin Inbox: "${adminEmail}"`);
+  console.log(`[Email Service] Attempting to send course request notification. Student: "${studentName}" (${studentEmail}), Course: "${courseTitle}". Sender Account: "${getSenderEmail()}", Admin Inbox: "${adminEmail}"`);
 
   if (!transporter) {
     console.log('\n=================== [SIMULATED EMAIL TO ADMIN] ===================');
@@ -151,7 +178,7 @@ const sendCourseRequestNotification = async (studentName, studentEmail, courseTi
 
   try {
     const info = await transporter.sendMail({
-      from: `"Skillvora Academy" <${process.env.EMAIL_USER}>`,
+      from: `"Skillvora Academy" <${getSenderEmail()}>`,
       to: adminEmail,
       replyTo: studentEmail, // Allows admin to reply directly to the student and passes SPF reputation
       subject: `[Skillvora] New Course Request from ${studentName}: ${courseTitle}`,
@@ -183,7 +210,7 @@ const sendCourseApprovalNotification = async (studentName, studentEmail, courseT
 
   try {
     const info = await transporter.sendMail({
-      from: `"Skillvora Academy" <${process.env.EMAIL_USER}>`,
+      from: `"Skillvora Academy" <${getSenderEmail()}>`,
       to: studentEmail,
       subject: `[Skillvora] Course Enrollment Approved: ${courseTitle}!`,
       html: htmlContent
@@ -211,7 +238,7 @@ const sendCourseRejectionNotification = async (studentName, studentEmail, course
 
   try {
     const info = await transporter.sendMail({
-      from: `"Skillvora Academy" <${process.env.EMAIL_USER}>`,
+      from: `"Skillvora Academy" <${getSenderEmail()}>`,
       to: studentEmail,
       subject: `[Skillvora] Course Request Update: ${courseTitle}`,
       html: htmlContent
