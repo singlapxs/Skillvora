@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 export const CourseDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
 
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -105,27 +105,19 @@ export const CourseDetails = () => {
     }
 
     // Check if student is enrolled in this specific course
-    const isEnrolled = user.enrolledCourses?.some(id => (id._id || id) === course._id);
+    const isEnrolled = user.enrolledCourses?.some(id => (id._id || id).toString() === course._id.toString());
     if (user.role !== 'admin' && !isEnrolled) {
       return (
-        <div className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-550 dark:text-slate-400 py-3 rounded-xl font-bold text-center text-sm shadow-inner">
-          Not Enrolled (Contact Admin)
-        </div>
-      );
-    }
-
-    if (user.status === 'pending') {
-      return (
-        <div className="w-full bg-amber-500/10 border border-amber-500/20 text-amber-400 py-3 rounded-xl font-bold text-center text-sm shadow-inner">
-          Enrollment Pending Approval
-        </div>
-      );
-    }
-
-    if (user.status === 'rejected') {
-      return (
-        <div className="w-full bg-red-500/10 border border-red-500/20 text-red-400 py-3 rounded-xl font-bold text-center text-sm">
-          Enrollment Request Declined
+        <div className="w-full bg-slate-950/80 backdrop-blur-md border border-violet-500/20 py-3.5 px-4 rounded-xl font-bold text-center text-sm shadow-2xl flex flex-col items-center justify-center gap-1.5 animate-pulse">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-violet-500 shadow-lg shadow-violet-500/50 animate-ping" />
+            <span className="text-violet-400 text-xs font-black uppercase tracking-widest">
+              Access Restricted
+            </span>
+          </div>
+          <span className="text-slate-400 text-[11px] font-semibold tracking-wide">
+            Enrollment Required (Contact Admin)
+          </span>
         </div>
       );
     }

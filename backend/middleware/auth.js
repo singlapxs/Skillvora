@@ -39,32 +39,6 @@ const approvedUsersOnly = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ success: false, message: 'Not authenticated.' });
   }
-
-  if (req.user.role === 'admin') {
-    return next(); // Admins are always authorized
-  }
-
-  if (req.user.status === 'pending') {
-    return res.status(403).json({
-      success: false,
-      message: 'Your account is pending admin approval.'
-    });
-  }
-
-  if (req.user.status === 'rejected') {
-    return res.status(403).json({
-      success: false,
-      message: 'Your enrollment request was rejected.'
-    });
-  }
-
-  if (!req.user.isApproved || req.user.status !== 'approved') {
-    return res.status(403).json({
-      success: false,
-      message: 'Access denied. Account is not approved.'
-    });
-  }
-
   next();
 };
 

@@ -35,19 +35,10 @@ exports.register = async (req, res, next) => {
     // Check if this is the first user in the database
     const isFirstUser = (await User.countDocuments({})) === 0;
 
-    let role = 'student';
-    let status = 'pending';
-    let isApproved = false;
-    let approvedAt = null;
-
-    // Bootstrapping: Auto-approve the first registered user as an Administrator
-    if (isFirstUser) {
-      role = 'admin';
-      status = 'approved';
-      isApproved = true;
-      approvedAt = new Date();
-      console.log(`[Bootstrap] Auto-created initial Admin account: ${email}`);
-    }
+    let role = isFirstUser ? 'admin' : 'student';
+    let status = 'approved'; // Auto-approved on register
+    let isApproved = true;
+    let approvedAt = new Date();
 
     const user = await User.create({
       name,
@@ -59,17 +50,12 @@ exports.register = async (req, res, next) => {
       approvedAt
     });
 
-    // Send notifications if user is pending admin approval
-    if (status === 'pending') {
-      await sendAdminNotification(name, email);
-    }
-
     res.status(201).json({
       success: true,
       message: isFirstUser 
         ? 'Initial Admin account created and logged in automatically!' 
-        : 'Registration successful! Your account is pending admin approval. You will receive an email once approved.',
-      token: isFirstUser ? generateToken(user._id) : null,
+        : 'Registration successful! Your account is active. You can browse courses and request access.',
+      token: generateToken(user._id), // Auto-login on registration
       user: {
         id: user._id,
         name: user.name,
@@ -77,7 +63,7 @@ exports.register = async (req, res, next) => {
         role: user.role,
         status: user.status,
         isApproved: user.isApproved,
-        enrolledCourses: user.enrolledCourses || []
+        enrolledCourses: []
       }
     });
   } catch (error) {
@@ -110,29 +96,7 @@ exports.login = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials.' });
     }
 
-    // Enforce Approval System Constraints
-    if (user.role !== 'admin') {
-      if (user.status === 'pending') {
-        return res.status(403).json({
-          success: false,
-          message: 'Your account is pending admin approval.'
-        });
-      }
-
-      if (user.status === 'rejected') {
-        return res.status(403).json({
-          success: false,
-          message: 'Your enrollment request was rejected.'
-        });
-      }
-
-      if (!user.isApproved || user.status !== 'approved') {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied. Account is not approved.'
-        });
-      }
-    }
+    // Open login: any registered account can login successfully.
 
     // Generate JWT token
     const token = generateToken(user._id);

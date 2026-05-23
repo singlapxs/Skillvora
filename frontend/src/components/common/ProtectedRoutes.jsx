@@ -20,48 +20,7 @@ export const ProtectedRoute = ({ adminOnly = false }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Handle student approval constraints
-  if (user.role !== 'admin') {
-    if (user.status === 'pending') {
-      return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-          <div className="max-w-md w-full glass-panel rounded-2xl p-8 text-center border-amber-500/30">
-            <FiAlertTriangle className="w-16 h-16 text-amber-500 mx-auto mb-6" />
-            <h2 className="text-2xl font-bold text-slate-100 mb-2">Approval Pending</h2>
-            <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-              Your registration is currently under review by the system administrator. You will receive an email confirmation once your account has been approved.
-            </p>
-            <button
-              onClick={logout}
-              className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-3 rounded-xl font-semibold transition-all duration-200"
-            >
-              Sign Out & Return Home
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (user.status === 'rejected') {
-      return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-          <div className="max-w-md w-full glass-panel rounded-2xl p-8 text-center border-red-500/30">
-            <FiAlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-6" />
-            <h2 className="text-2xl font-bold text-slate-100 mb-2">Enrollment Declined</h2>
-            <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-              Your registration request was declined by the administrator. Please contact support or appeal this decision if you believe this was in error.
-            </p>
-            <button
-              onClick={logout}
-              className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-3 rounded-xl font-semibold transition-all duration-200"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      );
-    }
-  }
+  // Open access to logged-in users; no account-wide approval constraints.
 
   // Admin routing verification
   if (adminOnly && user.role !== 'admin') {

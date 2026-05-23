@@ -95,6 +95,36 @@ export const AdminDashboard = () => {
     }
   };
 
+  const handleEnroll = async (userId, courseId) => {
+    setActionLoading(true);
+    try {
+      const res = await api.put(`/admin/users/${userId}/enroll`, { courseId });
+      if (res.data.success) {
+        alert(res.data.message);
+        await fetchData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Enrollment failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUnenroll = async (userId, courseId) => {
+    setActionLoading(true);
+    try {
+      const res = await api.put(`/admin/users/${userId}/unenroll`, { courseId });
+      if (res.data.success) {
+        alert(res.data.message);
+        await fetchData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Unenrollment failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // 2. Course Creation API trigger
   const handleCreateCourse = async (e) => {
     e.preventDefault();
@@ -491,22 +521,76 @@ export const AdminDashboard = () => {
             
             <div className="divide-y divide-slate-900/60">
               {allUsers.map((u) => (
-                <div key={u._id} className="p-4.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs sm:text-sm">
-                  <div>
-                    <h4 className="font-bold text-slate-200">{u.name}</h4>
-                    <p className="text-xs text-slate-400 mt-1">Email: {u.email}</p>
-                    <span className="text-[10px] text-slate-500 mt-1 block uppercase font-mono">Role: {u.role}</span>
+                <div key={u._id} className="p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs sm:text-sm">
+                    <div>
+                      <h4 className="font-extrabold text-slate-200 text-sm sm:text-base">{u.name}</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">Email: {u.email}</p>
+                      <span className="text-[10px] text-slate-500 mt-1 block uppercase font-mono tracking-wider">Role: {u.role}</span>
+                    </div>
+
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide font-mono ${
+                      u.role === 'admin' 
+                        ? 'bg-violet-500/10 border border-violet-500/20 text-violet-400' 
+                        : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                    }`}>
+                      {u.role}
+                    </span>
                   </div>
 
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide font-mono ${
-                    u.status === 'approved' 
-                      ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' 
-                      : u.status === 'pending'
-                      ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400'
-                      : 'bg-red-500/10 border border-red-500/20 text-red-400'
-                  }`}>
-                    {u.status}
-                  </span>
+                  {u.role === 'student' && (
+                    <div className="pt-4 border-t border-slate-900 space-y-3">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+                        Course Access Control
+                      </span>
+                      
+                      <div className="flex flex-wrap items-center gap-2">
+                        {u.enrolledCourses && u.enrolledCourses.length > 0 ? (
+                          u.enrolledCourses.map((c) => (
+                            <span 
+                              key={c._id || c} 
+                              className="inline-flex items-center gap-1.5 bg-violet-600/15 border border-violet-500/25 text-violet-400 px-3 py-1 rounded-xl text-xs font-semibold"
+                            >
+                              {c.title || 'Course'}
+                              <button
+                                onClick={() => handleUnenroll(u._id, c._id || c)}
+                                disabled={actionLoading}
+                                className="text-violet-400 hover:text-red-400 transition-colors p-0.5 rounded-full hover:bg-red-500/10"
+                                title="Revoke access"
+                              >
+                                <FiX className="w-3.5 h-3.5" />
+                              </button>
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-slate-500 italic text-xs">No active course approvals. Student has catalog-only view.</span>
+                        )}
+
+                        <div className="ml-auto flex items-center gap-2 mt-2 sm:mt-0">
+                          <select
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val) {
+                                handleEnroll(u._id, val);
+                                e.target.value = ''; // Reset select
+                              }
+                            }}
+                            disabled={actionLoading}
+                            className="bg-slate-950 border border-slate-850 hover:border-slate-700 rounded-xl py-1.5 px-3 text-xs text-slate-400 focus:outline-none focus:border-violet-500 transition-colors cursor-pointer"
+                            defaultValue=""
+                          >
+                            <option value="" disabled>+ Approve Course Access</option>
+                            {courses
+                              .filter(course => !u.enrolledCourses?.some(ec => (ec._id || ec).toString() === course._id.toString()))
+                              .map(course => (
+                                <option key={course._id} value={course._id}>{course.title}</option>
+                              ))
+                            }
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

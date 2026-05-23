@@ -39,21 +39,14 @@ export const Register = () => {
     setLoading(false);
 
     if (res.success) {
-      if (res.autoLogin) {
-        // First user auto login case
-        setSuccessMsg(res.message);
-        setTimeout(() => {
+      setSuccessMsg(res.message || 'Account created successfully! Preparing your dashboard...');
+      setTimeout(() => {
+        if (res.user?.role === 'admin') {
           navigate('/admin/dashboard');
-        }, 3000);
-      } else {
-        // Pending student case
-        setSuccessMsg(res.message);
-        // Clear fields
-        setName('');
-        setEmail('');
-        setPassword('');
-        setConfirmPassword('');
-      }
+        } else {
+          navigate('/courses');
+        }
+      }, 2000);
     } else {
       setError(res.message);
     }
@@ -78,7 +71,7 @@ export const Register = () => {
             Create Account
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-2">
-            Submit enrollment details for administrative review.
+            Create an account to browse available courses immediately.
           </p>
         </div>
 
@@ -194,7 +187,7 @@ export const Register = () => {
                 <FiLoader className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  <FiUserPlus className="w-4 h-4" /> Request Access
+                  <FiUserPlus className="w-4 h-4" /> Sign Up & Browse
                 </>
               )}
             </button>

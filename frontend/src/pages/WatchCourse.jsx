@@ -29,6 +29,17 @@ export const WatchCourse = () => {
   ]);
   const [newComment, setNewComment] = useState('');
 
+  // Client-side access guard: redirect non-enrolled students back to course overview
+  useEffect(() => {
+    if (user && user.role !== 'admin') {
+      const isEnrolled = user.enrolledCourses?.some(cId => (cId._id || cId).toString() === id.toString());
+      if (!isEnrolled) {
+        alert('You are not enrolled in this course. Please contact the administrator for access.');
+        navigate(`/courses/${id}`);
+      }
+    }
+  }, [id, user, navigate]);
+
   // Fetch Syllabus and Student Progress Checkpoints
   useEffect(() => {
     const fetchWatchData = async () => {
