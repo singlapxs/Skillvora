@@ -66,12 +66,77 @@ const getSenderEmail = () => {
    COMMON SEND MAIL FUNCTION
 ========================================================= */
 
+/* =========================================================
+   SEND VIA GOOGLE APPS SCRIPT
+========================================================= */
+
+const sendViaAppsScript = async ({ to, subject, html }) => {
+  const url = process.env.EMAIL_SCRIPT_URL;
+  const apiKey = process.env.EMAIL_SCRIPT_KEY;
+  if (!url) return false;
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        to,
+        subject,
+        html,
+        apiKey,
+      }),
+    });
+
+    const data = await response.json();
+    if (data && data.success) {
+      console.log(`[Email System] Email sent via Google Apps Script to ${to}`);
+      return true;
+    } else {
+      console.error(`[Email System] Google Apps Script sending failed:`, data ? data.error : "Unknown error");
+      return false;
+    }
+  } catch (error) {
+    console.error(`[Email System] Google Apps Script network error:`, error.message);
+    return false;
+  }
+};
+
+/* =========================================================
+   QUEUE EMAIL IN DATABASE
+========================================================= */
+
+const queueEmail = async ({ to, subject, html }) => {
+  try {
+    const EmailQueue = require('../models/EmailQueue');
+    await EmailQueue.create({ to, subject, html });
+    console.log(`[Email System] Email successfully queued for ${to}`);
+    return true;
+  } catch (error) {
+    console.error(`[Email System] Failed to queue email for ${to}:`, error);
+    return false;
+  }
+};
+
 const sendEmail = async ({
   to,
   subject,
   html,
   replyTo = undefined,
 }) => {
+  // 1. Check if Google Apps Script is configured (port 443 HTTPS - bypasses Render port block)
+  if (process.env.EMAIL_SCRIPT_URL) {
+    const success = await sendViaAppsScript({ to, subject, html });
+    if (success) return true;
+  }
+
+  // 2. Check if we should queue the email in database (for cron processing)
+  if (process.env.USE_EMAIL_QUEUE === 'true') {
+    return await queueEmail({ to, subject, html });
+  }
+
+  // 3. Fallback to direct SMTP (works on localhost/development)
   const transporter = createTransporter();
 
   if (!transporter) {
@@ -282,6 +347,66 @@ const sendCourseRejectionNotification = async (
 };
 
 /* =========================================================
+   PROCESS EMAIL QUEUE (FOR CRON WORKER)
+========================================================= */
+
+const processEmailQueue = async () => {
+  const EmailQueue = require("../models/EmailQueue");
+  
+  // Find pending or failed emails with less than 3 attempts
+  const pendingEmails = await EmailQueue.find({
+    status: { $in: ["pending", "failed"] },
+    attempts: { $lt: 3 },
+  });
+
+  if (pendingEmails.length === 0) {
+    console.log("[Email System] No pending emails in the queue");
+    return;
+  }
+
+  console.log(`[Email System] Processing ${pendingEmails.length} queued emails...`);
+
+  // Direct SMTP transporter for the worker
+  const transporter = createTransporter();
+  if (!transporter) {
+    console.error("[Email System] SMTP Transporter not available for worker");
+    return;
+  }
+
+  for (const email of pendingEmails) {
+    email.status = "processing";
+    await email.save();
+
+    try {
+      const info = await transporter.sendMail({
+        from: {
+          name: "Skillvora Academy",
+          address: getSenderEmail(),
+        },
+        to: email.to,
+        subject: email.subject,
+        html: email.html,
+        headers: {
+          "X-Priority": "1",
+        },
+      });
+
+      email.status = "sent";
+      email.sentAt = new Date();
+      email.attempts += 1;
+      await email.save();
+      console.log(`[Email System] Sent queued email to ${email.to}: ${info.messageId}`);
+    } catch (error) {
+      email.status = "failed";
+      email.attempts += 1;
+      email.error = error.message;
+      await email.save();
+      console.error(`[Email System] Failed to send queued email to ${email.to}:`, error);
+    }
+  }
+};
+
+/* =========================================================
    EXPORTS
 ========================================================= */
 
@@ -292,4 +417,5 @@ module.exports = {
   sendCourseRequestNotification,
   sendCourseApprovalNotification,
   sendCourseRejectionNotification,
+  processEmailQueue,
 };

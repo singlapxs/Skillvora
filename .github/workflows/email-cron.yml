@@ -1,0 +1,35 @@
+name: Email Queue Cron Job
+
+on:
+  schedule:
+    - cron: '*/10 * * * *' # Run every 10 minutes
+  workflow_dispatch: # Allows manual execution from the GitHub actions tab
+
+jobs:
+  process-queue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Run Email Cron Worker
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          USE_EMAIL_QUEUE: "true"
+        run: |
+          node backend/utils/cronWorker.js
