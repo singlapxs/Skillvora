@@ -10,7 +10,7 @@
     @apply text-slate-900 dark:text-slate-50;
   }
   p {
-    @apply text-slate-600 dark:text-slate-450;
+    @apply text-slate-600 dark:text-slate-400;
   }
   select, input, textarea {
     @apply bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 placeholder-slate-400 dark:placeholder-slate-600 focus:border-violet-500 focus:outline-none transition-all;
