@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { FiBookOpen, FiLogOut, FiUser, FiSliders, FiMenu, FiSettings, FiSun, FiMoon } from 'react-icons/fi';
+import { FiBookOpen, FiLogOut, FiUser, FiSliders, FiMenu, FiSettings } from 'react-icons/fi';
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
@@ -10,23 +10,6 @@ export const Navbar = () => {
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
-
-  // Local theme state syncing
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
-
-  useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [theme]);
-
-  const toggleTheme = () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-    localStorage.setItem('theme', nextTheme);
-  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -112,16 +95,6 @@ export const Navbar = () => {
 
         {/* User Account Controls */}
         <div className="flex items-center space-x-4 relative" ref={dropdownRef}>
-          
-          {/* Light / Dark Mode Toggle button */}
-          <button
-            onClick={toggleTheme}
-            className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all transform active:scale-95 cursor-pointer shadow-sm"
-            title={theme === 'dark' ? 'Toggle Light Theme' : 'Toggle Dark Theme'}
-          >
-            {theme === 'dark' ? <FiSun className="w-4 h-4 text-amber-500" /> : <FiMoon className="w-4 h-4 text-violet-650" />}
-          </button>
-
           {user ? (
             <div className="flex items-center space-x-4">
               <div className="hidden lg:flex flex-col text-right">
