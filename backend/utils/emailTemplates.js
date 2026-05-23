@@ -216,8 +216,90 @@ const studentRejectedTemplate = (studentName) => {
   `;
 };
 
+/**
+ * Template 4: Course Enrollment Request (Admin Notification)
+ */
+const courseRequestAdminTemplate = (studentName, studentEmail, courseTitle, approvalLink) => {
+  return `
+    ${headerHtml('New Course Request Awaiting Review')}
+    <h2 style="color: ${brandColors.secondary}; margin-top: 0;">Course Access Request</h2>
+    <p>A student has requested enrollment and watch access for a specific course catalog item on the Skillvora platform.</p>
+    
+    <table class="table">
+      <tr>
+        <th style="width: 40%;">Student Name</th>
+        <td>${studentName}</td>
+      </tr>
+      <tr>
+        <th>Email Address</th>
+        <td>${studentEmail}</td>
+      </tr>
+      <tr>
+        <th>Requested Course</th>
+        <td style="color: ${brandColors.primary}; font-weight: bold;">${courseTitle}</td>
+      </tr>
+      <tr>
+        <th>Request Date</th>
+        <td>${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })}</td>
+      </tr>
+    </table>
+    
+    <p>You can grant course access or review this student request directly from the Student Roster and Approvals board:</p>
+    <div style="text-align: center; margin: 32px 0 16px;">
+      <a href="${approvalLink}" class="btn" target="_blank">Open Admin Dashboard</a>
+    </div>
+    ${footerHtml}
+  `;
+};
+
+/**
+ * Template 5: Course Request Approved (Confirmation to Student)
+ */
+const courseRequestApprovedTemplate = (studentName, courseTitle, watchLink) => {
+  return `
+    ${headerHtml('Course Access Granted!')}
+    <h2 style="color: ${brandColors.success}; margin-top: 0;">Access Unlocked: ${courseTitle}</h2>
+    <p>Hello ${studentName},</p>
+    <p>Great news! The administrator has <strong>approved</strong> your enrollment request for the course: <strong>${courseTitle}</strong>.</p>
+    
+    <p>The course outlines and watch launcher have been unlocked for your account. You can now stream lectures, check modules, and log progress.</p>
+    
+    <div style="border-left: 4px solid ${brandColors.success}; padding: 12px 16px; background-color: #ecfdf5; margin: 24px 0; border-radius: 4px;">
+      <p style="margin: 0; color: #065f46; font-size: 14px;">
+        <strong>Syllabus Unlocked:</strong> ${courseTitle}
+      </p>
+    </div>
+    
+    <p>Click the button below to launch the video player and start learning right now:</p>
+    <div style="text-align: center; margin: 32px 0 16px;">
+      <a href="${watchLink}" class="btn" style="background-color: ${brandColors.success}; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);" target="_blank">Launch Course Player</a>
+    </div>
+    ${footerHtml}
+  `;
+};
+
+/**
+ * Template 6: Course Request Rejected (Notice to Student)
+ */
+const courseRequestRejectedTemplate = (studentName, courseTitle) => {
+  return `
+    ${headerHtml('Course Request Update')}
+    <h2 style="color: ${brandColors.danger}; margin-top: 0;">Course Enrollment Update</h2>
+    <p>Hello ${studentName},</p>
+    <p>Thank you for submitting a course enrollment request for: <strong>${courseTitle}</strong>.</p>
+    <p>After review, the administrator has decided to <strong>decline</strong> your enrollment request for this specific course syllabus at this time.</p>
+    
+    <p>You can still browse the public catalogs for other study resources. If you have questions or want to request a revision, please contact support.</p>
+    
+    ${footerHtml}
+  `;
+};
+
 module.exports = {
   adminNotificationTemplate,
   studentApprovedTemplate,
-  studentRejectedTemplate
+  studentRejectedTemplate,
+  courseRequestAdminTemplate,
+  courseRequestApprovedTemplate,
+  courseRequestRejectedTemplate
 };

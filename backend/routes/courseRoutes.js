@@ -11,13 +11,19 @@ const {
   deleteModule,
   createLecture,
   updateLecture,
-  deleteLecture
+  deleteLecture,
+  requestCourseEnrollment,
+  getCourseRequestStatus
 } = require('../controllers/courseController');
 const { protect, adminOnly } = require('../middleware/auth');
 
 // Public routes for course viewing
 router.get('/', getCourses);
 router.get('/:id', getCourse);
+
+// Student request routes
+router.post('/:courseId/request', protect, requestCourseEnrollment);
+router.get('/:courseId/request-status', protect, getCourseRequestStatus);
 
 // Admin-only course configuration routes
 router.post('/', protect, adminOnly, createCourse);

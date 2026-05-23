@@ -2,7 +2,10 @@ const nodemailer = require('nodemailer');
 const {
   adminNotificationTemplate,
   studentApprovedTemplate,
-  studentRejectedTemplate
+  studentRejectedTemplate,
+  courseRequestAdminTemplate,
+  courseRequestApprovedTemplate,
+  courseRequestRejectedTemplate
 } = require('./emailTemplates');
 
 /**
@@ -127,8 +130,102 @@ const sendRejectionNotification = async (studentName, studentEmail) => {
   }
 };
 
+const sendCourseRequestNotification = async (studentName, studentEmail, courseTitle) => {
+  const transporter = createTransporter();
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'admin@example.com';
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const approvalLink = `${clientUrl}/admin/dashboard`;
+
+  const htmlContent = courseRequestAdminTemplate(studentName, studentEmail, courseTitle, approvalLink);
+
+  if (!transporter) {
+    console.log('\n=================== [SIMULATED EMAIL TO ADMIN] ===================');
+    console.log(`To: ${adminEmail}`);
+    console.log(`Subject: [Skillvora] New Course Request from ${studentName}`);
+    console.log(`Body:\nStudent Name: ${studentName}\nStudent Email: ${studentEmail}\nRequested Course: ${courseTitle}\nDashboard Link: ${approvalLink}`);
+    console.log('==================================================================\n');
+    return true;
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"Skillvora Academy" <${process.env.EMAIL_USER}>`,
+      to: adminEmail,
+      subject: `[Skillvora] New Course Request from ${studentName}: ${courseTitle}`,
+      html: htmlContent
+    });
+    console.log(`[Email System] Course request notification email sent: ${info.messageId}`);
+    return true;
+  } catch (error) {
+    console.error(`[Email System Error] Failed to send course request email: ${error.message}`);
+    return false;
+  }
+};
+
+const sendCourseApprovalNotification = async (studentName, studentEmail, courseTitle, courseId) => {
+  const transporter = createTransporter();
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const watchLink = `${clientUrl}/watch/${courseId}`;
+
+  const htmlContent = courseRequestApprovedTemplate(studentName, courseTitle, watchLink);
+
+  if (!transporter) {
+    console.log('\n================== [SIMULATED EMAIL TO STUDENT] ==================');
+    console.log(`To: ${studentEmail}`);
+    console.log(`Subject: [Skillvora] Course Enrollment Approved: ${courseTitle}!`);
+    console.log(`Body:\nHello ${studentName},\nYour request for the course "${courseTitle}" has been approved!\nAccess Player Link: ${watchLink}`);
+    console.log('==================================================================\n');
+    return true;
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"Skillvora Academy" <${process.env.EMAIL_USER}>`,
+      to: studentEmail,
+      subject: `[Skillvora] Course Enrollment Approved: ${courseTitle}!`,
+      html: htmlContent
+    });
+    console.log(`[Email System] Student course approval email sent: ${info.messageId}`);
+    return true;
+  } catch (error) {
+    console.error(`[Email System Error] Failed to send course approval email: ${error.message}`);
+    return false;
+  }
+};
+
+const sendCourseRejectionNotification = async (studentName, studentEmail, courseTitle) => {
+  const transporter = createTransporter();
+  const htmlContent = courseRequestRejectedTemplate(studentName, courseTitle);
+
+  if (!transporter) {
+    console.log('\n================== [SIMULATED EMAIL TO STUDENT] ==================');
+    console.log(`To: ${studentEmail}`);
+    console.log(`Subject: [Skillvora] Course Request Update: ${courseTitle}`);
+    console.log(`Body:\nHello ${studentName},\nYour enrollment request for "${courseTitle}" has been declined.`);
+    console.log('==================================================================\n');
+    return true;
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"Skillvora Academy" <${process.env.EMAIL_USER}>`,
+      to: studentEmail,
+      subject: `[Skillvora] Course Request Update: ${courseTitle}`,
+      html: htmlContent
+    });
+    console.log(`[Email System] Student course rejection email sent: ${info.messageId}`);
+    return true;
+  } catch (error) {
+    console.error(`[Email System Error] Failed to send course rejection email: ${error.message}`);
+    return false;
+  }
+};
+
 module.exports = {
   sendAdminNotification,
   sendApprovalConfirmation,
-  sendRejectionNotification
+  sendRejectionNotification,
+  sendCourseRequestNotification,
+  sendCourseApprovalNotification,
+  sendCourseRejectionNotification
 };

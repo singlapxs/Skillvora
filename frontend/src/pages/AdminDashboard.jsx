@@ -13,6 +13,7 @@ export const AdminDashboard = () => {
   // States
   const [analytics, setAnalytics] = useState(null);
   const [pendingUsers, setPendingUsers] = useState([]);
+  const [courseRequests, setCourseRequests] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [courses, setCourses] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -44,6 +45,9 @@ export const AdminDashboard = () => {
 
       const pendingRes = await api.get('/admin/pending-users');
       if (pendingRes.data.success) setPendingUsers(pendingRes.data.data);
+
+      const requestsRes = await api.get('/admin/course-requests');
+      if (requestsRes.data.success) setCourseRequests(requestsRes.data.data);
 
       const userRes = await api.get('/admin/users');
       if (userRes.data.success) setAllUsers(userRes.data.data);
@@ -120,6 +124,36 @@ export const AdminDashboard = () => {
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Unenrollment failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleApproveCourseRequest = async (requestId) => {
+    setActionLoading(true);
+    try {
+      const res = await api.put(`/admin/course-requests/${requestId}/approve`);
+      if (res.data.success) {
+        alert(res.data.message);
+        await fetchData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Approval failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRejectCourseRequest = async (requestId) => {
+    setActionLoading(true);
+    try {
+      const res = await api.put(`/admin/course-requests/${requestId}/reject`);
+      if (res.data.success) {
+        alert(res.data.message);
+        await fetchData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Decline failed');
     } finally {
       setActionLoading(false);
     }
@@ -294,7 +328,7 @@ export const AdminDashboard = () => {
               activeTab === 'approvals' ? 'border-violet-500 text-violet-450' : 'border-transparent text-slate-450 hover:text-slate-200'
             }`}
           >
-            Pending Approvals ({pendingUsers.length})
+            Pending Course Requests ({courseRequests.length})
           </button>
           <button
             onClick={() => setActiveTab('courses')}
@@ -320,19 +354,27 @@ export const AdminDashboard = () => {
         {activeTab === 'approvals' && (
           <div className="glass-panel rounded-2xl overflow-hidden shadow-xl">
             <div className="p-6 border-b border-slate-900 flex justify-between items-center">
-              <h2 className="text-base font-bold text-slate-200">Pending Review Enrollment List</h2>
+              <h2 className="text-base font-bold text-slate-200">Pending Course Enrollment Requests</h2>
             </div>
             
-            {pendingUsers.length > 0 ? (
+            {courseRequests.length > 0 ? (
               <div className="divide-y divide-slate-900/60">
-                {pendingUsers.map((p) => (
-                  <div key={p._id} className="p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs sm:text-sm">
+                {courseRequests.map((req) => (
+                  <div key={req._id} className="p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs sm:text-sm">
                     <div>
-                      <h4 className="font-extrabold text-slate-250">{p.name}</h4>
-                      <p className="text-xs text-slate-400 mt-1">Email: {p.email}</p>
-                      <span className="text-[10px] text-slate-500 font-medium block mt-1">
-                        Registered:{' '}
-                        {new Date(p.createdAt).toLocaleDateString('en-US', {
+                      <h4 className="font-extrabold text-slate-250 text-sm sm:text-base">{req.user?.name || 'Student'}</h4>
+                      <p className="text-xs text-slate-400 mt-1">Email: {req.user?.email || 'N/A'}</p>
+                      
+                      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Requested Course:</span>
+                        <span className="inline-flex items-center bg-violet-600/15 border border-violet-500/25 text-violet-400 px-2.5 py-0.5 rounded-lg text-xs font-semibold">
+                          {req.course?.title || 'Unknown Course'}
+                        </span>
+                      </div>
+
+                      <span className="text-[10px] text-slate-500 font-medium block mt-1.5">
+                        Requested:{' '}
+                        {new Date(req.createdAt).toLocaleDateString('en-US', {
                           dateStyle: 'medium'
                         })}
                       </span>
@@ -340,18 +382,18 @@ export const AdminDashboard = () => {
 
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleApprove(p._id)}
+                        onClick={() => handleApproveCourseRequest(req._id)}
                         disabled={actionLoading}
                         className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transform active:scale-95 transition-all shadow-lg shadow-emerald-500/10"
                       >
-                        <FiCheck className="w-3.5 h-3.5" /> Approve
+                        <FiCheck className="w-3.5 h-3.5" /> Approve Request
                       </button>
                       <button
-                        onClick={() => handleReject(p._id)}
+                        onClick={() => handleRejectCourseRequest(req._id)}
                         disabled={actionLoading}
                         className="bg-red-950/40 hover:bg-red-950/70 border border-red-500/30 hover:border-red-500 text-red-400 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transform active:scale-95 transition-all"
                       >
-                        <FiX className="w-3.5 h-3.5" /> Decline
+                        <FiX className="w-3.5 h-3.5" /> Decline Request
                       </button>
                     </div>
                   </div>
@@ -360,7 +402,7 @@ export const AdminDashboard = () => {
             ) : (
               <div className="py-16 text-center text-slate-500">
                 <FiUsers className="w-12 h-12 text-slate-700 mx-auto mb-3" />
-                <p className="text-xs">No pending student registration requests found.</p>
+                <p className="text-xs">No pending course enrollment requests found.</p>
               </div>
             )}
           </div>

@@ -7,7 +7,10 @@ const {
   getAllUsers, 
   getAnalytics,
   enrollStudent,
-  unenrollStudent
+  unenrollStudent,
+  getCourseRequests,
+  approveCourseRequest,
+  rejectCourseRequest
 } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middleware/auth');
 
@@ -22,5 +25,10 @@ router.get('/users', getAllUsers);
 router.get('/analytics', getAnalytics);
 router.put('/users/:userId/enroll', enrollStudent);
 router.put('/users/:userId/unenroll', unenrollStudent);
+
+// Course access request administrative reviews
+router.get('/course-requests', getCourseRequests);
+router.put('/course-requests/:requestId/approve', approveCourseRequest);
+router.put('/course-requests/:requestId/reject', rejectCourseRequest);
 
 module.exports = router;

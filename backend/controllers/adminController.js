@@ -210,3 +210,100 @@ exports.unenrollStudent = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @desc    Get pending course requests
+ * @route   GET /api/admin/course-requests
+ * @access  Private/Admin
+ */
+exports.getCourseRequests = async (req, res, next) => {
+  try {
+    const CourseRequest = require('../models/CourseRequest');
+    const requests = await CourseRequest.find({ status: 'pending' })
+      .populate('user')
+      .populate('course')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: requests.length,
+      data: requests
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Approve specific course request
+ * @route   PUT /api/admin/course-requests/:requestId/approve
+ * @access  Private/Admin
+ */
+exports.approveCourseRequest = async (req, res, next) => {
+  try {
+    const CourseRequest = require('../models/CourseRequest');
+    const { sendCourseApprovalNotification } = require('../utils/emailService');
+
+    const request = await CourseRequest.findById(req.params.requestId).populate('user').populate('course');
+
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Request not found.' });
+    }
+
+    const { user, course } = request;
+
+    // Enroll student if not already enrolled
+    const isAlreadyEnrolled = user.enrolledCourses?.some(id => id.toString() === course._id.toString());
+    if (!isAlreadyEnrolled) {
+      if (!user.enrolledCourses) user.enrolledCourses = [];
+      user.enrolledCourses.push(course._id);
+      await user.save();
+    }
+
+    request.status = 'approved';
+    await request.save();
+
+    // Send confirmation email to the student!
+    await sendCourseApprovalNotification(user.name, user.email, course.title, course._id);
+
+    res.status(200).json({
+      success: true,
+      message: `Course request approved! ${user.name} is now enrolled in ${course.title}.`,
+      data: request
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Reject specific course request
+ * @route   PUT /api/admin/course-requests/:requestId/reject
+ * @access  Private/Admin
+ */
+exports.rejectCourseRequest = async (req, res, next) => {
+  try {
+    const CourseRequest = require('../models/CourseRequest');
+    const { sendCourseRejectionNotification } = require('../utils/emailService');
+
+    const request = await CourseRequest.findById(req.params.requestId).populate('user').populate('course');
+
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Request not found.' });
+    }
+
+    request.status = 'rejected';
+    await request.save();
+
+    // Send rejection email to student!
+    await sendCourseRejectionNotification(request.user.name, request.user.email, request.course.title);
+
+    res.status(200).json({
+      success: true,
+      message: 'Course request declined.',
+      data: request
+    });
+  } catch (error) {
+    next(error);
+  }
+};

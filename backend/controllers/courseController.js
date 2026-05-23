@@ -425,3 +425,85 @@ exports.deleteLecture = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @desc    Request course enrollment access
+ * @route   POST /api/courses/:courseId/request
+ * @access  Private
+ */
+exports.requestCourseEnrollment = async (req, res, next) => {
+  try {
+    const CourseRequest = require('../models/CourseRequest');
+    const { sendCourseRequestNotification } = require('../utils/emailService');
+    const Course = require('../models/Course');
+
+    const courseId = req.params.courseId;
+    const userId = req.user.id;
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Course not found.' });
+    }
+
+    // Check if user is already enrolled
+    const isEnrolled = req.user.enrolledCourses?.some(
+      (id) => id.toString() === courseId.toString()
+    );
+    if (isEnrolled) {
+      return res.status(400).json({ success: false, message: 'You are already enrolled in this course.' });
+    }
+
+    // Check if there is already a pending request
+    const existingRequest = await CourseRequest.findOne({
+      user: userId,
+      course: courseId,
+      status: 'pending'
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({ success: false, message: 'You have already submitted a pending request for this course.' });
+    }
+
+    // Create the CourseRequest
+    const newRequest = await CourseRequest.create({
+      user: userId,
+      course: courseId
+    });
+
+    // Send email notification to the Admin!
+    await sendCourseRequestNotification(req.user.name, req.user.email, course.title);
+
+    res.status(201).json({
+      success: true,
+      message: 'Access request submitted successfully! The administrator has been notified.',
+      data: newRequest
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get course request status for logged in student
+ * @route   GET /api/courses/:courseId/request-status
+ * @access  Private
+ */
+exports.getCourseRequestStatus = async (req, res, next) => {
+  try {
+    const CourseRequest = require('../models/CourseRequest');
+    const courseId = req.params.courseId;
+    const userId = req.user.id;
+
+    const request = await CourseRequest.findOne({
+      user: userId,
+      course: courseId
+    }).sort({ createdAt: -1 }); // Get the latest request
+
+    res.status(200).json({
+      success: true,
+      data: request ? request.status : null
+    });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -13,6 +13,8 @@ export const CourseDetails = () => {
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(null);
   const [expandedModules, setExpandedModules] = useState({});
+  const [requestStatus, setRequestStatus] = useState(null);
+  const [requestLoading, setRequestLoading] = useState(false);
 
   useEffect(() => {
     const fetchSyllabus = async () => {
@@ -46,9 +48,50 @@ export const CourseDetails = () => {
       }
     };
 
+    const fetchRequestStatus = async () => {
+      if (!user || user.role === 'admin') return;
+      try {
+        const response = await api.get(`/courses/${id}/request-status`);
+        if (response.data.success) {
+          setRequestStatus(response.data.data);
+        }
+      } catch (err) {
+        // Safe to ignore
+      }
+    };
+
+    const syncUserProfile = async () => {
+      if (!user) return;
+      try {
+        const response = await api.get('/auth/me');
+        if (response.data.success) {
+          setUser(response.data.user);
+        }
+      } catch (err) {
+        // Safe to ignore
+      }
+    };
+
     fetchSyllabus();
     fetchProgress();
+    fetchRequestStatus();
+    syncUserProfile();
   }, [id, user]);
+
+  const handleRequestAccess = async () => {
+    setRequestLoading(true);
+    try {
+      const response = await api.post(`/courses/${id}/request`);
+      if (response.data.success) {
+        alert(response.data.message);
+        setRequestStatus('pending');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Access request failed.');
+    } finally {
+      setRequestLoading(false);
+    }
+  };
 
   const toggleModule = (modId) => {
     setExpandedModules(prev => ({
@@ -107,18 +150,30 @@ export const CourseDetails = () => {
     // Check if student is enrolled in this specific course
     const isEnrolled = user.enrolledCourses?.some(id => (id._id || id).toString() === course._id.toString());
     if (user.role !== 'admin' && !isEnrolled) {
-      return (
-        <div className="w-full bg-slate-950/80 backdrop-blur-md border border-violet-500/20 py-3.5 px-4 rounded-xl font-bold text-center text-sm shadow-2xl flex flex-col items-center justify-center gap-1.5 animate-pulse">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-violet-500 shadow-lg shadow-violet-500/50 animate-ping" />
-            <span className="text-violet-400 text-xs font-black uppercase tracking-widest">
-              Access Restricted
+      if (requestStatus === 'pending') {
+        return (
+          <div className="w-full bg-slate-950/80 backdrop-blur-md border border-amber-500/20 py-3.5 px-4 rounded-xl font-bold text-center text-sm shadow-2xl flex flex-col items-center justify-center gap-1.5 animate-pulse">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-lg shadow-amber-500/50 animate-ping" />
+              <span className="text-amber-400 text-xs font-black uppercase tracking-widest">
+                Request Pending
+              </span>
+            </div>
+            <span className="text-slate-400 text-[11px] font-semibold tracking-wide">
+              Awaiting Admin Approval & Mail Dispatch
             </span>
           </div>
-          <span className="text-slate-400 text-[11px] font-semibold tracking-wide">
-            Enrollment Required (Contact Admin)
-          </span>
-        </div>
+        );
+      }
+
+      return (
+        <button
+          onClick={handleRequestAccess}
+          disabled={requestLoading}
+          className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transform active:scale-95 transition-all shadow-lg shadow-violet-500/10 hover:shadow-violet-500/20 disabled:opacity-50"
+        >
+          {requestLoading ? 'Submitting Request...' : 'Enroll in Course'}
+        </button>
       );
     }
 
@@ -257,11 +312,6 @@ export const CourseDetails = () => {
             {/* Launch / Enroll Controls */}
             <div className="space-y-4">
               {getEnrollmentButton()}
-              
-              <div className="text-[10px] text-slate-500 space-y-2 border-t border-slate-900 pt-4 leading-relaxed">
-                <p>&bull; Active Google Drive streaming with dynamic anti-recording secure code labels.</p>
-                <p>&bull; Allowed PDF, assignments, and zip references can be direct-downloaded.</p>
-              </div>
             </div>
 
           </div>
