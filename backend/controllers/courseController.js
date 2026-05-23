@@ -440,6 +440,8 @@ exports.requestCourseEnrollment = async (req, res, next) => {
     const courseId = req.params.courseId;
     const userId = req.user.id;
 
+    console.log(`[Course Controller] Student "${req.user.name}" (${req.user.email}) has triggered a Course Access Request for courseId: ${courseId}`);
+
     const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ success: false, message: 'Course not found.' });

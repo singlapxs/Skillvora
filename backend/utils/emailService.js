@@ -138,6 +138,8 @@ const sendCourseRequestNotification = async (studentName, studentEmail, courseTi
 
   const htmlContent = courseRequestAdminTemplate(studentName, studentEmail, courseTitle, approvalLink);
 
+  console.log(`[Email Service] Attempting to send course request notification. Student: "${studentName}" (${studentEmail}), Course: "${courseTitle}". Sender Account: "${process.env.EMAIL_USER}", Admin Inbox: "${adminEmail}"`);
+
   if (!transporter) {
     console.log('\n=================== [SIMULATED EMAIL TO ADMIN] ===================');
     console.log(`To: ${adminEmail}`);
@@ -151,13 +153,14 @@ const sendCourseRequestNotification = async (studentName, studentEmail, courseTi
     const info = await transporter.sendMail({
       from: `"Skillvora Academy" <${process.env.EMAIL_USER}>`,
       to: adminEmail,
+      replyTo: studentEmail, // Allows admin to reply directly to the student and passes SPF reputation
       subject: `[Skillvora] New Course Request from ${studentName}: ${courseTitle}`,
       html: htmlContent
     });
-    console.log(`[Email System] Course request notification email sent: ${info.messageId}`);
+    console.log(`[Email System] Course request notification email successfully sent: ${info.messageId} to ${adminEmail}`);
     return true;
   } catch (error) {
-    console.error(`[Email System Error] Failed to send course request email: ${error.message}`);
+    console.error(`[Email System Error] Failed to send course request email to ${adminEmail}: ${error.message}`);
     return false;
   }
 };
