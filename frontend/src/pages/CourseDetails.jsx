@@ -38,13 +38,18 @@ export const CourseDetails = () => {
 
     const fetchProgress = async () => {
       if (!user || user.role === 'admin') return;
+
+      // Skip progress checks if the student is not enrolled in this specific course
+      const isEnrolled = user.enrolledCourses?.some(cId => (cId._id || cId).toString() === id.toString());
+      if (!isEnrolled) return;
+
       try {
         const response = await api.get(`/progress/${id}`);
         if (response.data.success) {
           setProgress(response.data.data);
         }
       } catch (err) {
-        // Safe to ignore if they aren't approved yet or progress is blank
+        // Safe to ignore
       }
     };
 
@@ -65,7 +70,13 @@ export const CourseDetails = () => {
       try {
         const response = await api.get('/auth/me');
         if (response.data.success) {
-          setUser(response.data.user);
+          // Compare enrolled courses to prevent recursive context re-renders
+          const currentEnrolled = (user.enrolledCourses || []).map(c => (c._id || c).toString()).sort().join(',');
+          const newEnrolled = (response.data.user.enrolledCourses || []).map(c => (c._id || c).toString()).sort().join(',');
+          
+          if (currentEnrolled !== newEnrolled) {
+            setUser(response.data.user);
+          }
         }
       } catch (err) {
         // Safe to ignore

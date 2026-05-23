@@ -42,8 +42,9 @@ exports.approveUser = async (req, res, next) => {
     user.approvedAt = new Date();
     await user.save();
 
-    // Trigger Nodemailer confirmation dispatch
-    await sendApprovalConfirmation(user.name, user.email);
+    // Trigger Nodemailer confirmation dispatch in background (non-blocking)
+    sendApprovalConfirmation(user.name, user.email)
+      .catch(err => console.error(`[Email System Error] Async welcome mail failed: ${err.message}`));
 
     res.status(200).json({
       success: true,
@@ -77,8 +78,9 @@ exports.rejectUser = async (req, res, next) => {
     user.approvedAt = null;
     await user.save();
 
-    // Trigger Nodemailer decline dispatch
-    await sendRejectionNotification(user.name, user.email);
+    // Trigger Nodemailer decline dispatch in background (non-blocking)
+    sendRejectionNotification(user.name, user.email)
+      .catch(err => console.error(`[Email System Error] Async rejection mail failed: ${err.message}`));
 
     res.status(200).json({
       success: true,
@@ -263,8 +265,9 @@ exports.approveCourseRequest = async (req, res, next) => {
     request.status = 'approved';
     await request.save();
 
-    // Send confirmation email to the student!
-    await sendCourseApprovalNotification(user.name, user.email, course.title, course._id);
+    // Send confirmation email to the student in the background (non-blocking)
+    sendCourseApprovalNotification(user.name, user.email, course.title, course._id)
+      .catch(err => console.error(`[Email System Error] Async course approval mail failed: ${err.message}`));
 
     res.status(200).json({
       success: true,
@@ -295,8 +298,9 @@ exports.rejectCourseRequest = async (req, res, next) => {
     request.status = 'rejected';
     await request.save();
 
-    // Send rejection email to student!
-    await sendCourseRejectionNotification(request.user.name, request.user.email, request.course.title);
+    // Send rejection email to student in background (non-blocking)
+    sendCourseRejectionNotification(request.user.name, request.user.email, request.course.title)
+      .catch(err => console.error(`[Email System Error] Async course rejection mail failed: ${err.message}`));
 
     res.status(200).json({
       success: true,

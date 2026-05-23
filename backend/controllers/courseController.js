@@ -470,8 +470,9 @@ exports.requestCourseEnrollment = async (req, res, next) => {
       course: courseId
     });
 
-    // Send email notification to the Admin!
-    await sendCourseRequestNotification(req.user.name, req.user.email, course.title);
+    // Send email notification to the Admin in the background (non-blocking)
+    sendCourseRequestNotification(req.user.name, req.user.email, course.title)
+      .catch(err => console.error(`[Email System Error] Async admin course request dispatch failed: ${err.message}`));
 
     res.status(201).json({
       success: true,
