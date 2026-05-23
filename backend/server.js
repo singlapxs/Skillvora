@@ -49,6 +49,20 @@ app.get('/', (req, res) => {
   });
 });
 
+// Dedicated System Health Check Endpoint
+app.get('/health', (req, res) => {
+  const indiaTime = new Date().toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    dateStyle: 'medium',
+    timeStyle: 'medium'
+  });
+  
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: `${indiaTime} (IST)`
+  });
+});
+
 // Centralized error interceptor
 app.use(errorHandler);
 
