@@ -107,10 +107,14 @@ export const Navbar = () => {
               {/* Profile Toggle Avatar Button */}
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 text-white font-black text-sm flex items-center justify-center cursor-pointer border border-violet-500/20 hover:border-violet-400/40 shadow-lg shadow-violet-500/5 transform active:scale-95 transition-all"
+                className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-tr from-violet-600 to-indigo-600 text-white font-black text-sm flex items-center justify-center cursor-pointer border border-violet-500/20 hover:border-violet-400/40 shadow-lg shadow-violet-500/5 transform active:scale-95 transition-all"
                 title="Profile"
               >
-                {user.name?.substring(0, 2).toUpperCase()}
+                {user.profilePic ? (
+                  <img src={user.profilePic} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  user.name?.substring(0, 2).toUpperCase()
+                )}
               </button>
 
               {/* Dropdown Menu Overlay */}
