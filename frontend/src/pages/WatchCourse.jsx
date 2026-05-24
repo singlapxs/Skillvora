@@ -346,7 +346,7 @@ export const WatchCourse = () => {
 
     ctx.fillStyle = '#e2e8f0'; // slate-200
     ctx.font = 'italic 26px sans-serif';
-    ctx.fillText('Skillvora Board', 375, 915);
+    ctx.fillText('Skillvora Academy', 375, 915);
     ctx.fillStyle = '#64748b'; // slate-500
     ctx.font = '600 16px sans-serif';
     ctx.fillText('Academy Registrar', 375, 960);
