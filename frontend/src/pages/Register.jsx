@@ -27,8 +27,11 @@ export const Register = () => {
       return setError('Passwords do not match.');
     }
 
-    if (password.length < 6) {
-      return setError('Password must be at least 6 characters long.');
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasSymbol = /[^a-zA-Z0-9]/.test(password);
+
+    if (password.length < 6 || !hasLetter || !hasSymbol) {
+      return setError('Password must contain at least 6 characters, including both letters and symbols/special characters (e.g. @, #, $).');
     }
 
     setLoading(true);
@@ -175,6 +178,9 @@ export const Register = () => {
                   className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl py-3 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-650 focus:outline-none transition-colors shadow-inner"
                 />
               </div>
+              <span className="text-[10px] text-slate-500 block leading-normal mt-2 select-none">
+                * Password must contain at least 6 characters, including both letters and symbols/special characters (e.g. @, #, $, etc.).
+              </span>
             </div>
 
             {/* Sign Up Button */}

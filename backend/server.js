@@ -40,6 +40,7 @@ app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/courses', require('./routes/courseRoutes'));
 app.use('/api/progress', require('./routes/progressRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
+app.use('/api/upload', require('./routes/uploadRoutes'));
 
 // Base health check route
 app.get('/', (req, res) => {

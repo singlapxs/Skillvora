@@ -26,6 +26,21 @@ exports.register = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Please provide all registration fields.' });
     }
 
+    // Enforce strong password validation (At least 6 characters, contain both letters and symbols/special characters)
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long.' });
+    }
+
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasSymbol = /[^a-zA-Z0-9]/.test(password);
+
+    if (!hasLetter || !hasSymbol) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must be strong: it must contain both letters (A-Z) and symbols/special characters (e.g. @, #, $, etc.).' 
+      });
+    }
+
     // Check if user already exists
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -63,6 +78,7 @@ exports.register = async (req, res, next) => {
         role: user.role,
         status: user.status,
         isApproved: user.isApproved,
+        profilePic: user.profilePic || '',
         enrolledCourses: []
       }
     });
@@ -111,6 +127,7 @@ exports.login = async (req, res, next) => {
         role: user.role,
         status: user.status,
         isApproved: user.isApproved,
+        profilePic: user.profilePic || '',
         enrolledCourses: user.enrolledCourses || []
       }
     });
@@ -164,3 +181,95 @@ exports.forgotPassword = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @desc    Update user profile (name, profilePic)
+ * @route   PUT /api/auth/profile
+ * @access  Private
+ */
+exports.updateProfile = async (req, res, next) => {
+  try {
+    const { name, profilePic } = req.body;
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    if (name) user.name = name;
+    if (profilePic !== undefined) user.profilePic = profilePic;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully!',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        isApproved: user.isApproved,
+        profilePic: user.profilePic,
+        enrolledCourses: user.enrolledCourses || []
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update user password
+ * @route   PUT /api/auth/update-password
+ * @access  Private
+ */
+exports.updatePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Please provide both current and new passwords.' });
+    }
+
+    // Get user and select password hash
+    const user = await User.findById(req.user.id).select('+password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    // Check current password matches
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
+    }
+
+    // Enforce strong password validation (Must be at least 6 characters, and contain both letters and symbols)
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+    }
+
+    const hasLetter = /[a-zA-Z]/.test(newPassword);
+    const hasSymbol = /[^a-zA-Z0-9]/.test(newPassword);
+
+    if (!hasLetter || !hasSymbol) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must be strong: it must contain both letters (A-Z) and symbols/special characters (e.g. @, #, $, etc.).' 
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully!'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
