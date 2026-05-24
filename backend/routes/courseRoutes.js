@@ -10,6 +10,7 @@ const {
   updateModule,
   deleteModule,
   createLecture,
+  bulkCreateLectures,
   updateLecture,
   deleteLecture,
   requestCourseEnrollment,
@@ -37,6 +38,7 @@ router.delete('/modules/:moduleId', protect, adminOnly, deleteModule);
 
 // Admin-only lecture configurations
 router.post('/modules/:moduleId/lectures', protect, adminOnly, createLecture);
+router.post('/modules/:moduleId/lectures/bulk', protect, adminOnly, bulkCreateLectures);
 router.put('/lectures/:lectureId', protect, adminOnly, updateLecture);
 router.delete('/lectures/:lectureId', protect, adminOnly, deleteLecture);
 

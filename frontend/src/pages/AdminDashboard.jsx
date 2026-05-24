@@ -36,6 +36,8 @@ export const AdminDashboard = () => {
   const [newLecture, setNewLecture] = useState({
     title: '', type: 'video', videoUrl: '', fileUrl: '', fileSize: '2.4 MB', duration: '10m', order: 0
   });
+  const [lectureModalMode, setLectureModalMode] = useState('single'); // 'single' | 'bulk'
+  const [bulkInput, setBulkInput] = useState('');
 
   // Pull Analytics, pending, and catalogue data
   const fetchData = async () => {
@@ -226,6 +228,62 @@ export const AdminDashboard = () => {
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to add lecture');
+    }
+  };
+
+  const handleBulkCreateLectures = async (e) => {
+    e.preventDefault();
+    if (!bulkInput.trim() || !selectedModule) return;
+
+    const lines = bulkInput.split('\n');
+    const lectures = [];
+
+    lines.forEach((line, index) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+
+      let title = '';
+      let videoUrl = '';
+
+      if (trimmed.includes('|')) {
+        const parts = trimmed.split('|');
+        title = parts[0].trim();
+        videoUrl = parts[1].trim();
+      } else {
+        videoUrl = trimmed;
+        title = `Lesson ${selectedModule.lectures?.length + index + 1}`;
+      }
+
+      if (videoUrl) {
+        lectures.push({
+          title,
+          type: 'video',
+          videoUrl,
+          duration: '10m',
+          fileSize: '0 MB'
+        });
+      }
+    });
+
+    if (lectures.length === 0) {
+      return alert('No valid videos found. Please use the format: Title | Link');
+    }
+
+    try {
+      const response = await api.post(`/courses/modules/${selectedModule._id}/lectures/bulk`, { lectures });
+      if (response.data.success) {
+        alert(`Successfully added ${lectures.length} lessons!`);
+        setShowLectureModal(false);
+        setBulkInput('');
+        setLectureModalMode('single');
+
+        // Refresh detailed view
+        const detailRes = await api.get(`/courses/${selectedCourse._id}`);
+        setSelectedCourse(detailRes.data.data);
+        await fetchData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to bulk add lectures');
     }
   };
 
@@ -501,6 +559,8 @@ export const AdminDashboard = () => {
                             <button
                               onClick={() => {
                                 setSelectedModule(mod);
+                                setLectureModalMode('single');
+                                setBulkInput('');
                                 setShowLectureModal(true);
                               }}
                               className="bg-violet-600/10 border border-violet-500/20 text-violet-400 hover:bg-violet-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
@@ -774,90 +834,134 @@ export const AdminDashboard = () => {
       {/* Lecture Modal (Google Drive Paste URL input!) */}
       {showLectureModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-6 overflow-y-auto">
-          <form onSubmit={handleCreateLecture} className="max-w-md w-full glass-panel rounded-2xl p-6 border-slate-800 space-y-4 self-start my-8">
+          <form onSubmit={lectureModalMode === 'bulk' ? handleBulkCreateLectures : handleCreateLecture} className={`max-w-${lectureModalMode === 'bulk' ? 'lg' : 'md'} w-full glass-panel rounded-2xl p-6 border-slate-800 space-y-4 self-start my-8`}>
             <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-              <FiFilePlus className="text-violet-400" /> Add Lesson Item
+              <FiFilePlus className="text-violet-400" /> {lectureModalMode === 'bulk' ? 'Bulk Add Video Lessons' : 'Add Lesson Item'}
             </h3>
 
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Lesson Title</label>
-              <input
-                type="text" required
-                value={newLecture.title}
-                onChange={(e) => setNewLecture(prev => ({ ...prev, title: e.target.value }))}
-                className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none"
-                placeholder="e.g. Setting up Express server"
-              />
+            {/* Mode Switcher Tabs */}
+            <div className="flex border-b border-slate-900 pb-2">
+              <button
+                type="button"
+                onClick={() => setLectureModalMode('single')}
+                className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all ${
+                  lectureModalMode === 'single' ? 'border-violet-500 text-violet-450' : 'border-transparent text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                Single Lesson
+              </button>
+              <button
+                type="button"
+                onClick={() => setLectureModalMode('bulk')}
+                className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-all ${
+                  lectureModalMode === 'bulk' ? 'border-violet-500 text-violet-450' : 'border-transparent text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                Bulk Add Videos
+              </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Format Type</label>
-                <select
-                  value={newLecture.type}
-                  onChange={(e) => setNewLecture(prev => ({ ...prev, type: e.target.value }))}
-                  className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-350 focus:outline-none"
-                >
-                  <option value="video">Google Drive Video</option>
-                  <option value="pdf">Google Drive PDF</option>
-                  <option value="notes">Notes / Text</option>
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Duration</label>
-                <input
-                  type="text"
-                  value={newLecture.duration}
-                  onChange={(e) => setNewLecture(prev => ({ ...prev, duration: e.target.value }))}
-                  className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none"
-                  placeholder="e.g. 15m"
-                />
-              </div>
-            </div>
-
-            {/* Google Drive pasting block (Requirement 4 & 27) */}
-            {newLecture.type === 'video' ? (
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-violet-400 uppercase tracking-widest flex items-center gap-1">
-                  <FiLink /> Paste Google Drive Video Link
-                </label>
-                <input
-                  type="url" required
-                  value={newLecture.videoUrl}
-                  onChange={(e) => setNewLecture(prev => ({ ...prev, videoUrl: e.target.value }))}
-                  className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-200 placeholder-slate-650 focus:outline-none"
-                  placeholder="https://drive.google.com/file/d/FILE_ID/view"
-                />
-                <span className="text-[9px] text-slate-500 block leading-tight">
-                  * System will automatically convert GDrive url into embed preview format `/preview`.
-                </span>
-              </div>
-            ) : (
+            {lectureModalMode === 'bulk' ? (
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-violet-400 uppercase tracking-widest flex items-center gap-1">
-                    <FiLink /> Paste Google Drive PDF/File Link
-                  </label>
-                  <input
-                    type="url" required
-                    value={newLecture.fileUrl}
-                    onChange={(e) => setNewLecture(prev => ({ ...prev, fileUrl: e.target.value }))}
-                    className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-200 placeholder-slate-650 focus:outline-none"
-                    placeholder="https://drive.google.com/file/d/FILE_ID/view"
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Video List (Title | Link)</label>
+                  <textarea
+                    required
+                    value={bulkInput}
+                    onChange={(e) => setBulkInput(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-855 rounded-lg p-3 h-64 text-xs text-slate-200 placeholder-slate-600 focus:outline-none font-mono"
+                    placeholder={`e.g.\nIntroduction to Course | https://drive.google.com/file/d/.../view\nSetting up Environment | https://drive.google.com/file/d/.../view`}
                   />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Estimated File Size</label>
-                  <input
-                    type="text"
-                    value={newLecture.fileSize}
-                    onChange={(e) => setNewLecture(prev => ({ ...prev, fileSize: e.target.value }))}
-                    className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none"
-                    placeholder="e.g. 3.2 MB"
-                  />
+                  <div className="text-[10px] text-slate-500 space-y-1 mt-1 leading-normal">
+                    <p>* Enter one video lesson per line.</p>
+                    <p>* Format: <strong>Title | Link</strong></p>
+                    <p>* If you only paste links, titles will be generated automatically (e.g. Lesson 1, Lesson 2).</p>
+                  </div>
                 </div>
               </div>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Lesson Title</label>
+                  <input
+                    type="text" required
+                    value={newLecture.title}
+                    onChange={(e) => setNewLecture(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none"
+                    placeholder="e.g. Setting up Express server"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Format Type</label>
+                    <select
+                      value={newLecture.type}
+                      onChange={(e) => setNewLecture(prev => ({ ...prev, type: e.target.value }))}
+                      className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-350 focus:outline-none"
+                    >
+                      <option value="video">Google Drive Video</option>
+                      <option value="pdf">Google Drive PDF</option>
+                      <option value="notes">Notes / Text</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Duration</label>
+                    <input
+                      type="text"
+                      value={newLecture.duration}
+                      onChange={(e) => setNewLecture(prev => ({ ...prev, duration: e.target.value }))}
+                      className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none"
+                      placeholder="e.g. 15m"
+                    />
+                  </div>
+                </div>
+
+                {/* Google Drive pasting block (Requirement 4 & 27) */}
+                {newLecture.type === 'video' ? (
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-violet-400 uppercase tracking-widest flex items-center gap-1">
+                      <FiLink /> Paste Google Drive Video Link
+                    </label>
+                    <input
+                      type="url" required
+                      value={newLecture.videoUrl}
+                      onChange={(e) => setNewLecture(prev => ({ ...prev, videoUrl: e.target.value }))}
+                      className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-200 placeholder-slate-650 focus:outline-none"
+                      placeholder="https://drive.google.com/file/d/FILE_ID/view"
+                    />
+                    <span className="text-[9px] text-slate-500 block leading-tight">
+                      * System will automatically convert GDrive url into embed preview format `/preview`.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-violet-400 uppercase tracking-widest flex items-center gap-1">
+                        <FiLink /> Paste Google Drive PDF/File Link
+                      </label>
+                      <input
+                        type="url" required
+                        value={newLecture.fileUrl}
+                        onChange={(e) => setNewLecture(prev => ({ ...prev, fileUrl: e.target.value }))}
+                        className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-200 placeholder-slate-650 focus:outline-none"
+                        placeholder="https://drive.google.com/file/d/FILE_ID/view"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Estimated File Size</label>
+                      <input
+                        type="text"
+                        value={newLecture.fileSize}
+                        onChange={(e) => setNewLecture(prev => ({ ...prev, fileSize: e.target.value }))}
+                        className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none"
+                        placeholder="e.g. 3.2 MB"
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             <div className="flex justify-end gap-2 pt-4 border-t border-slate-900">
@@ -870,9 +974,9 @@ export const AdminDashboard = () => {
               </button>
               <button
                 type="submit"
-                className="bg-violet-600 hover:bg-violet-500 text-white px-5 py-2 rounded-xl text-xs font-bold animate-pulse"
+                className="bg-violet-600 hover:bg-violet-500 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all"
               >
-                Save Lesson
+                {lectureModalMode === 'bulk' ? 'Save Lessons' : 'Save Lesson'}
               </button>
             </div>
           </form>

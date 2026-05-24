@@ -510,3 +510,83 @@ exports.getCourseRequestStatus = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @desc    Bulk create lectures inside a module
+ * @route   POST /api/courses/modules/:moduleId/lectures/bulk
+ * @access  Private/Admin
+ */
+exports.bulkCreateLectures = async (req, res, next) => {
+  try {
+    const { lectures } = req.body;
+    const moduleId = req.params.moduleId;
+
+    if (!lectures || !Array.isArray(lectures) || lectures.length === 0) {
+      return res.status(400).json({ success: false, message: 'Please provide an array of lectures.' });
+    }
+
+    const moduleDoc = await Module.findById(moduleId);
+    if (!moduleDoc) {
+      return res.status(404).json({ success: false, message: 'Module not found.' });
+    }
+
+    const createdLectures = [];
+    let startOrder = moduleDoc.lectures?.length || 0;
+
+    for (let i = 0; i < lectures.length; i++) {
+      const { title, type, videoUrl, fileUrl, fileSize, duration, order } = lectures[i];
+
+      if (!title || !type) {
+        continue;
+      }
+
+      // Process URLs
+      let parsedVideoUrl = videoUrl;
+      let parsedFileUrl = fileUrl;
+
+      if (type === 'video' && videoUrl) {
+        parsedVideoUrl = convertToEmbedUrl(videoUrl);
+      } else if (type === 'pdf' && fileUrl) {
+        parsedFileUrl = convertToEmbedUrl(fileUrl);
+      }
+
+      // Estimating duration
+      let finalDuration = duration;
+      if (!finalDuration || finalDuration === '0m') {
+        if (type === 'video') {
+          finalDuration = estimateDuration(title);
+        } else if (type === 'pdf') {
+          finalDuration = '5m';
+        } else {
+          finalDuration = '3m';
+        }
+      }
+
+      const lecture = await Lecture.create({
+        moduleId,
+        courseId: moduleDoc.courseId,
+        title,
+        type,
+        videoUrl: parsedVideoUrl,
+        fileUrl: parsedFileUrl,
+        fileSize: fileSize || '0 MB',
+        duration: finalDuration,
+        order: order !== undefined ? order : (startOrder + i)
+      });
+
+      moduleDoc.lectures.push(lecture._id);
+      createdLectures.push(lecture);
+    }
+
+    await moduleDoc.save();
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully created ${createdLectures.length} lectures.`,
+      data: createdLectures
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
