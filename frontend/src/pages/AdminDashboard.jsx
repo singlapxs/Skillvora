@@ -5,6 +5,7 @@ import {
   FiTrash2, FiActivity, FiCheck, FiX, FiInfo, FiLink, FiEdit 
 } from 'react-icons/fi';
 import { DashboardWidgetSkeleton, UserRowSkeleton } from '../components/common/Skeleton';
+import { Reorder } from 'framer-motion';
 
 export const AdminDashboard = () => {
   // Navigation Tabs
@@ -318,6 +319,27 @@ export const AdminDashboard = () => {
     }
   };
 
+  const handleReorderLectures = (moduleId, reorderedLectures) => {
+    const updatedModules = selectedCourse.modules.map(mod => {
+      if (mod._id === moduleId) {
+        return { ...mod, lectures: reorderedLectures };
+      }
+      return mod;
+    });
+    setSelectedCourse({ ...selectedCourse, modules: updatedModules });
+  };
+
+  const handleSaveLectureOrder = async (moduleId, currentLectures) => {
+    try {
+      const lectureIds = currentLectures.map(l => l._id);
+      await api.put(`/courses/modules/${moduleId}/lectures/reorder`, { lectureIds });
+      console.log(`[Reorder System] Persisted new lesson sequence for module: ${moduleId}`);
+      await fetchData();
+    } catch (err) {
+      console.error('[Reorder System Error] Failed to persist new order:', err.message);
+    }
+  };
+
   const handleSelectCourseDetails = async (course) => {
     try {
       const res = await api.get(`/courses/${course._id}`);
@@ -585,13 +607,24 @@ export const AdminDashboard = () => {
                             </button>
                           </div>
 
-                          {/* Lectures items lists */}
-                          <div className="divide-y divide-slate-900">
+                          {/* Lectures items lists (Drag-to-Reorder enabled using Framer Motion) */}
+                          <Reorder.Group
+                            axis="y"
+                            values={mod.lectures || []}
+                            onReorder={(newOrder) => handleReorderLectures(mod._id, newOrder)}
+                            className="divide-y divide-slate-900"
+                          >
                             {mod.lectures && mod.lectures.length > 0 ? (
                               mod.lectures.map((lec) => (
-                                <div key={lec._id} className="p-3.5 flex items-center justify-between text-xs sm:text-sm text-slate-350 hover:bg-slate-950/40">
-                                  <div className="flex items-center space-x-2.5 pr-4">
-                                    <span className="text-slate-500">
+                                <Reorder.Item
+                                  value={lec}
+                                  key={lec._id}
+                                  onDragEnd={() => handleSaveLectureOrder(mod._id, mod.lectures)}
+                                  className="p-3.5 flex items-center justify-between text-xs sm:text-sm text-slate-350 hover:bg-slate-950/40 cursor-grab active:cursor-grabbing bg-slate-950/45 select-none"
+                                >
+                                  <div className="flex items-center space-x-2.5 pr-4 pointer-events-none">
+                                    <span className="text-slate-500 flex items-center">
+                                      <span className="mr-2 text-slate-600 font-bold select-none cursor-grab">⋮⋮</span>
                                       {lec.type === 'video' ? <FiInfo className="w-4 h-4" /> : <FiInfo className="w-4 h-4" />}
                                     </span>
                                     <span className="font-semibold text-slate-300 line-clamp-1">{lec.title}</span>
@@ -602,19 +635,23 @@ export const AdminDashboard = () => {
                                     )}
                                     <span>{lec.duration}</span>
                                     <button
-                                      onClick={() => handleDeleteLecture(lec._id)}
-                                      className="text-slate-500 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-500/10 cursor-pointer"
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteLecture(lec._id);
+                                      }}
+                                      className="text-slate-500 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-500/10 cursor-pointer pointer-events-auto"
                                       title="Delete Lesson"
                                     >
                                       <FiTrash2 className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
-                                </div>
+                                </Reorder.Item>
                               ))
                             ) : (
-                              <p className="p-4 text-center text-xs text-slate-500 italic">No lessons in this module. Add one above.</p>
+                              <p className="p-4 text-center text-xs text-slate-500 italic pointer-events-none">No lessons in this module. Add one above.</p>
                             )}
-                          </div>
+                          </Reorder.Group>
 
                         </div>
                       ))}

@@ -590,3 +590,41 @@ exports.bulkCreateLectures = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Reorder lectures inside a module
+ * @route   PUT /api/courses/modules/:moduleId/lectures/reorder
+ * @access  Private/Admin
+ */
+exports.reorderLectures = async (req, res, next) => {
+  try {
+    const { lectureIds } = req.body;
+    const moduleId = req.params.moduleId;
+
+    if (!lectureIds || !Array.isArray(lectureIds)) {
+      return res.status(400).json({ success: false, message: 'Please provide an array of lecture IDs.' });
+    }
+
+    const moduleDoc = await Module.findById(moduleId);
+    if (!moduleDoc) {
+      return res.status(404).json({ success: false, message: 'Module not found.' });
+    }
+
+    // Update database order sequence
+    for (let i = 0; i < lectureIds.length; i++) {
+      await Lecture.findByIdAndUpdate(lectureIds[i], { order: i });
+    }
+
+    // Update Module lectures array order
+    moduleDoc.lectures = lectureIds;
+    await moduleDoc.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Lectures reordered successfully.'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
