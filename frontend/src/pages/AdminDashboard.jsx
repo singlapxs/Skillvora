@@ -302,6 +302,22 @@ export const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteLecture = async (lectureId) => {
+    if (!confirm('Are you absolutely sure you want to delete this lesson?')) return;
+    try {
+      const response = await api.delete(`/courses/lectures/${lectureId}`);
+      if (response.data.success) {
+        alert('Lesson deleted successfully.');
+        // Refresh detailed view of the course
+        const detailRes = await api.get(`/courses/${selectedCourse._id}`);
+        setSelectedCourse(detailRes.data.data);
+        await fetchData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete lesson');
+    }
+  };
+
   const handleSelectCourseDetails = async (course) => {
     try {
       const res = await api.get(`/courses/${course._id}`);
@@ -585,6 +601,13 @@ export const AdminDashboard = () => {
                                       <span className="bg-slate-800 text-[10px] px-1 rounded font-mono text-slate-400">{lec.fileSize}</span>
                                     )}
                                     <span>{lec.duration}</span>
+                                    <button
+                                      onClick={() => handleDeleteLecture(lec._id)}
+                                      className="text-slate-500 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-500/10 cursor-pointer"
+                                      title="Delete Lesson"
+                                    >
+                                      <FiTrash2 className="w-3.5 h-3.5" />
+                                    </button>
                                   </div>
                                 </div>
                               ))
