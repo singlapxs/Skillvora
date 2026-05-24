@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FiChevronDown, FiChevronUp, FiPlayCircle, FiFileText, FiBookOpen, FiCheckCircle } from 'react-icons/fi';
 
-export const SidebarLectures = ({ modules = [], activeLectureId, onSelectLecture, completedLectures = [], onToggleComplete, progressPercentage = 0 }) => {
+export const SidebarLectures = ({ modules = [], activeLectureId, onSelectLecture, completedLectures = [], onToggleComplete, progressPercentage = 0, onDownloadCertificate }) => {
   const [expandedModules, setExpandedModules] = useState(
     modules.reduce((acc, mod, index) => {
       // By default, expand the first module
@@ -49,6 +49,24 @@ export const SidebarLectures = ({ modules = [], activeLectureId, onSelectLecture
           {completedLectures.length} lessons completed out of all modules.
         </p>
       </div>
+
+      {/* Glowing Gold Certificate Banner if 100% Complete */}
+      {progressPercentage === 100 && (
+        <div className="p-4 mx-4 mt-4 rounded-xl bg-gradient-to-r from-amber-500/20 via-yellow-600/10 to-amber-500/20 border border-amber-500/40 text-center shadow-lg shadow-amber-500/5">
+          <span className="text-[10px] font-extrabold text-amber-400 uppercase tracking-widest block mb-1.5 animate-pulse">
+            🎓 Course Completed!
+          </span>
+          <p className="text-[11px] text-slate-300 mb-3 leading-snug">
+            Congratulations! You have completed 100% of the syllabus outlines.
+          </p>
+          <button
+            onClick={onDownloadCertificate}
+            className="w-full py-2.5 px-3 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-450 hover:to-yellow-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all cursor-pointer"
+          >
+            Claim Certificate
+          </button>
+        </div>
+      )}
 
       {/* Accordion List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">

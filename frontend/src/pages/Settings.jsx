@@ -30,6 +30,26 @@ export const Settings = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
+  // Sync state when async user loads from AuthContext
+  useEffect(() => {
+    if (user) {
+      setName(prev => prev || user.name || '');
+      setProfilePic(prev => prev || user.profilePic || '');
+    }
+  }, [user]);
+
+  // Save profile picture instantly to backend & context
+  const saveProfilePicInstantly = async (newPicUrl) => {
+    try {
+      const response = await api.put('/auth/profile', { name: name || user?.name, profilePic: newPicUrl });
+      if (response.data.success) {
+        setUser(response.data.user);
+      }
+    } catch (err) {
+      console.error('[Instant Avatar Save Failed]', err);
+    }
+  };
+
   // Auto-clear notifications after 4 seconds
   useEffect(() => {
     if (message || error) {
@@ -66,8 +86,10 @@ export const Settings = () => {
         // Upload to backend API which forwards to Cloudinary
         const response = await api.post('/upload', { image: base64Data });
         if (response.data.success) {
-          setProfilePic(response.data.url);
+          const newUrl = response.data.url;
+          setProfilePic(newUrl);
           setMessage('Image uploaded to Cloudinary successfully!');
+          await saveProfilePicInstantly(newUrl);
         }
       } catch (err) {
         setError(err.response?.data?.message || 'Failed to upload image to Cloudinary.');
@@ -269,7 +291,11 @@ export const Settings = () => {
                       <button
                         key={avatar.name}
                         type="button"
-                        onClick={() => setProfilePic(avatar.url)}
+                        onClick={async () => {
+                          setProfilePic(avatar.url);
+                          await saveProfilePicInstantly(avatar.url);
+                          setMessage(`Avatar changed to ${avatar.name}!`);
+                        }}
                         className={`relative w-11 h-11 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${
                           profilePic === avatar.url ? 'border-violet-500 scale-105 shadow-md shadow-violet-500/10' : 'border-slate-850 hover:border-slate-600'
                         }`}

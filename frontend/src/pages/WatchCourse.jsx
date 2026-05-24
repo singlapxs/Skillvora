@@ -5,7 +5,7 @@ import { PDFViewer } from '../components/player/PDFViewer';
 import { SidebarLectures } from '../components/player/SidebarLectures';
 import { api } from '../context/AuthContext';
 import { useAuth } from '../context/AuthContext';
-import { FiArrowLeft, FiMessageSquare, FiInfo, FiThumbsUp, FiThumbsDown, FiBookmark } from 'react-icons/fi';
+import { FiArrowLeft, FiMessageSquare, FiInfo, FiThumbsUp, FiThumbsDown, FiBookmark, FiPlayCircle } from 'react-icons/fi';
 
 export const WatchCourse = () => {
   const { id } = useParams(); // course ID
@@ -28,6 +28,12 @@ export const WatchCourse = () => {
     { id: 2, author: 'Admin', text: 'Glad you liked it! Let me know if you face any issues.', date: '1 day ago' }
   ]);
   const [newComment, setNewComment] = useState('');
+
+  // Playback & Notes Bookmarks States
+  const [playbackTime, setPlaybackTime] = useState(0); // in seconds
+  const [playerStartTime, setPlayerStartTime] = useState(0); // to skip to in VideoPlayer
+  const [noteTimeInput, setNoteTimeInput] = useState('00:00'); // current formatted capture text
+  const [lectureNotes, setLectureNotes] = useState([]); // loaded saved bookmarks array
 
   // Client-side access guard: redirect non-enrolled students back to course overview
   useEffect(() => {
@@ -108,6 +114,314 @@ export const WatchCourse = () => {
 
     fetchWatchData();
   }, [id]);
+
+  // Load saved notes for the active lecture
+  useEffect(() => {
+    if (user && activeLecture) {
+      const storageKey = `skillvora_notes_${user.id || user._id}_${activeLecture._id}`;
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          setLectureNotes(JSON.parse(saved));
+        } catch (e) {
+          setLectureNotes([]);
+        }
+      } else {
+        setLectureNotes([]);
+      }
+    }
+  }, [user, activeLecture]);
+
+  // Track playback time on video load
+  useEffect(() => {
+    setPlaybackTime(0);
+    setPlayerStartTime(0);
+    setNoteTimeInput('00:00');
+    
+    if (activeLecture && activeLecture.type === 'video') {
+      const interval = setInterval(() => {
+        setPlaybackTime(prev => {
+          const next = prev + 1;
+          const mins = Math.floor(next / 60).toString().padStart(2, '0');
+          const secs = (next % 60).toString().padStart(2, '0');
+          setNoteTimeInput(`${mins}:${secs}`);
+          return next;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [activeLecture]);
+
+  // Helpers for time formatting
+  const formatSeconds = (seconds) => {
+    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const secs = (seconds % 60).toString().padStart(2, '0');
+    return `${mins}:${secs}`;
+  };
+
+  const parseTimeToSeconds = (timeStr) => {
+    const parts = timeStr.split(':');
+    if (parts.length === 2) {
+      const mins = parseInt(parts[0], 10) || 0;
+      const secs = parseInt(parts[1], 10) || 0;
+      return mins * 60 + secs;
+    }
+    const secs = parseInt(timeStr, 10);
+    return isNaN(secs) ? 0 : secs;
+  };
+
+  const handleSaveNote = (e) => {
+    e.preventDefault();
+    if (!studentNotes.trim()) return;
+
+    const seconds = parseTimeToSeconds(noteTimeInput);
+    const formatted = formatSeconds(seconds);
+    
+    const newNote = {
+      id: Date.now(),
+      text: studentNotes,
+      time: seconds,
+      formattedTime: formatted,
+      createdAt: new Date().toLocaleDateString()
+    };
+
+    const updatedNotes = [...lectureNotes, newNote].sort((a, b) => a.time - b.time);
+    setLectureNotes(updatedNotes);
+    setStudentNotes('');
+
+    if (user && activeLecture) {
+      const storageKey = `skillvora_notes_${user.id || user._id}_${activeLecture._id}`;
+      localStorage.setItem(storageKey, JSON.stringify(updatedNotes));
+    }
+  };
+
+  const handleDeleteNote = (noteId) => {
+    const updatedNotes = lectureNotes.filter(n => n.id !== noteId);
+    setLectureNotes(updatedNotes);
+
+    if (user && activeLecture) {
+      const storageKey = `skillvora_notes_${user.id || user._id}_${activeLecture._id}`;
+      localStorage.setItem(storageKey, JSON.stringify(updatedNotes));
+    }
+  };
+
+  const handleJumpToNoteTime = (seconds) => {
+    setPlayerStartTime(seconds);
+    setPlaybackTime(seconds);
+    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const secs = (seconds % 60).toString().padStart(2, '0');
+    setNoteTimeInput(`${mins}:${secs}`);
+  };
+
+  const downloadCertificate = () => {
+    if (!course || !user) return;
+
+    // Create the canvas element
+    const canvas = document.createElement('canvas');
+    canvas.width = 1600;
+    canvas.height = 1130;
+    const ctx = canvas.getContext('2d');
+
+    // 1. Draw elegant Slate-950 dark background gradient
+    const bgGrad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    bgGrad.addColorStop(0, '#020617'); // slate-950
+    bgGrad.addColorStop(0.5, '#0b0f19');
+    bgGrad.addColorStop(1, '#1e1b4b'); // indigo-950
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 2. Draw triple-layered glowing linear gradient borders
+    const borderGrad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    borderGrad.addColorStop(0, '#8b5cf6'); // violet-500
+    borderGrad.addColorStop(0.5, '#6366f1'); // indigo-500
+    borderGrad.addColorStop(1, '#06b6d4'); // cyan-500
+    
+    ctx.strokeStyle = borderGrad;
+    ctx.lineWidth = 14;
+    ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
+
+    // Inner thin border (Slate-800)
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(55, 55, canvas.width - 110, canvas.height - 110);
+
+    // Golden dotted decorative frame
+    ctx.strokeStyle = '#eab308'; // yellow-500
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 8]);
+    ctx.strokeRect(70, 70, canvas.width - 140, canvas.height - 140);
+    ctx.setLineDash([]); // reset dash
+
+    // 3. Draw elegant golden corner vector flourishes
+    const drawCornerFlourish = (x, y, scaleX, scaleY) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scaleX, scaleY);
+      ctx.strokeStyle = '#eab308';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, 40);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(40, 0);
+      ctx.stroke();
+
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(10, 50);
+      ctx.lineTo(10, 10);
+      ctx.lineTo(50, 10);
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    drawCornerFlourish(85, 85, 1, 1);       // Top-Left
+    drawCornerFlourish(canvas.width - 85, 85, -1, 1); // Top-Right
+    drawCornerFlourish(85, canvas.height - 85, 1, -1); // Bottom-Left
+    drawCornerFlourish(canvas.width - 85, canvas.height - 85, -1, -1); // Bottom-Right
+
+    // 4. Draw certificate header
+    ctx.shadowColor = 'rgba(139, 92, 246, 0.4)';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#f8fafc'; // slate-50
+    ctx.font = '900 48px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('CERTIFICATE OF COMPLETION', canvas.width / 2, 200);
+    ctx.shadowBlur = 0; // reset shadow
+
+    // Subtitle
+    ctx.fillStyle = '#94a3b8'; // slate-400
+    ctx.font = '600 20px sans-serif';
+    ctx.fillText('THIS IS PROUDLY PRESENTED TO', canvas.width / 2, 270);
+
+    // 5. Draw Student Name (Vibrant gold gradient, massive size)
+    const nameGrad = ctx.createLinearGradient(canvas.width / 2 - 300, 0, canvas.width / 2 + 300, 0);
+    nameGrad.addColorStop(0, '#fef08a'); // yellow-200
+    nameGrad.addColorStop(0.5, '#eab308'); // yellow-500
+    nameGrad.addColorStop(1, '#ca8a04'); // yellow-600
+
+    ctx.fillStyle = nameGrad;
+    ctx.font = '900 84px sans-serif';
+    ctx.shadowColor = 'rgba(234, 179, 8, 0.25)';
+    ctx.shadowBlur = 20;
+    ctx.fillText(user.name, canvas.width / 2, 400);
+    ctx.shadowBlur = 0; // reset
+
+    // Underline for student name
+    ctx.strokeStyle = borderGrad;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(canvas.width / 2 - 250, 435);
+    ctx.lineTo(canvas.width / 2 + 250, 435);
+    ctx.stroke();
+
+    // 6. Draw Course Completion Text
+    ctx.fillStyle = '#cbd5e1'; // slate-300
+    ctx.font = '500 24px sans-serif';
+    ctx.fillText('for successfully completing all modular syllabus outlines and lectures of', canvas.width / 2, 530);
+
+    // Course Title (Vibrant violet/cyan gradient)
+    const titleGrad = ctx.createLinearGradient(canvas.width / 2 - 400, 0, canvas.width / 2 + 400, 0);
+    titleGrad.addColorStop(0, '#a78bfa'); // violet-400
+    titleGrad.addColorStop(1, '#22d3ee'); // cyan-400
+    ctx.fillStyle = titleGrad;
+    ctx.font = '900 52px sans-serif';
+    ctx.shadowColor = 'rgba(167, 139, 250, 0.3)';
+    ctx.shadowBlur = 12;
+    ctx.fillText(course.title, canvas.width / 2, 630);
+    ctx.shadowBlur = 0; // reset
+
+    // Academy context
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '600 20px sans-serif';
+    ctx.fillText(`Issued by Skillvora Academy on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, canvas.width / 2, 720);
+
+    // 7. Draw bottom row elements
+    // Left: Signature Line 1 (Academy Registrar)
+    ctx.strokeStyle = '#334155'; // slate-700
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(250, 930);
+    ctx.lineTo(500, 930);
+    ctx.stroke();
+
+    ctx.fillStyle = '#e2e8f0'; // slate-200
+    ctx.font = 'italic 26px sans-serif';
+    ctx.fillText('Skillvora Board', 375, 915);
+    ctx.fillStyle = '#64748b'; // slate-500
+    ctx.font = '600 16px sans-serif';
+    ctx.fillText('Academy Registrar', 375, 960);
+
+    // Center: Verified Gold Graduate Seal Emblem
+    ctx.shadowColor = 'rgba(234, 179, 8, 0.3)';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#eab308';
+    ctx.beginPath();
+    ctx.arc(canvas.width / 2, 890, 60, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Draw seal inner details (double outline + ribbon tails)
+    ctx.strokeStyle = '#78350f'; // amber-900
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(canvas.width / 2, 890, 50, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Ribbon tails
+    ctx.fillStyle = '#ca8a04';
+    ctx.beginPath();
+    ctx.moveTo(canvas.width / 2 - 35, 940);
+    ctx.lineTo(canvas.width / 2 - 50, 1010);
+    ctx.lineTo(canvas.width / 2 - 15, 995);
+    ctx.lineTo(canvas.width / 2 + 10, 1010);
+    ctx.lineTo(canvas.width / 2 - 5, 940);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(canvas.width / 2 + 5, 940);
+    ctx.lineTo(canvas.width / 2 - 10, 1010);
+    ctx.lineTo(canvas.width / 2 + 15, 995);
+    ctx.lineTo(canvas.width / 2 + 50, 1010);
+    ctx.lineTo(canvas.width / 2 + 35, 940);
+    ctx.closePath();
+    ctx.fill();
+
+    // Text inside seal
+    ctx.fillStyle = '#78350f';
+    ctx.font = '900 14px sans-serif';
+    ctx.fillText('VERIFIED', canvas.width / 2, 885);
+    ctx.fillText('GRADUATE', canvas.width / 2, 905);
+
+    // Right: Signature Line 2 (Lead Instructor)
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(1100, 930);
+    ctx.lineTo(1350, 930);
+    ctx.stroke();
+
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = 'italic 26px sans-serif';
+    ctx.fillText(course.instructor || 'Lead Instructor', 1225, 915);
+    ctx.fillStyle = '#64748b';
+    ctx.font = '600 16px sans-serif';
+    ctx.fillText('Lead Instructor', 1225, 960);
+
+    // 8. Unique Certificate Hash ID at the top right corner
+    const certHash = `CERT-SV-${course._id.substring(18).toUpperCase()}-${(user.id || user._id).substring(18).toUpperCase()}`;
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#475569'; // slate-600
+    ctx.font = 'bold 15px monospace';
+    ctx.fillText(certHash, canvas.width - 100, 120);
+
+    // 9. Download file trigger
+    const image = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `Skillvora_Certificate_${course.title.replace(/\s+/g, '_')}.png`;
+    link.href = image;
+    link.click();
+  };
 
   // Handle active lecture change
   const handleSelectLecture = async (lec) => {
@@ -254,6 +568,7 @@ export const WatchCourse = () => {
           completedLectures={completedList}
           onToggleComplete={handleToggleComplete}
           progressPercentage={progress?.progressPercentage || 0}
+          onDownloadCertificate={downloadCertificate}
         />
       </div>
 
@@ -278,6 +593,7 @@ export const WatchCourse = () => {
                 onCompleted={handleMarkCompletedAndNext}
                 isCompleted={isLecCompleted}
                 title={activeLecture.title}
+                startTime={playerStartTime}
               />
             ) : (
               <PDFViewer
@@ -344,14 +660,115 @@ export const WatchCourse = () => {
 
             {/* Tab Contents */}
             {activeTab === 'notes' ? (
-              <div className="space-y-3">
-                <h4 className="text-sm font-bold text-slate-200">Study Notepad</h4>
-                <textarea
-                  value={studentNotes}
-                  onChange={(e) => setStudentNotes(e.target.value)}
-                  placeholder="Draft personal code snippets or summaries. Content persists inside this browser session..."
-                  className="w-full h-32 bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs sm:text-sm text-slate-200 placeholder-slate-650 focus:outline-none focus:border-violet-500 transition-colors shadow-inner"
-                />
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-200">Study Notepad & Bookmarks</h4>
+                    <p className="text-[11px] text-slate-550">
+                      Write notes synced to the video playhead. Click any timestamp badge to skip the video to that second.
+                    </p>
+                  </div>
+                  {activeLecture?.type === 'video' && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-400">Current playhead:</span>
+                      <span className="px-2.5 py-1 bg-slate-900 text-violet-400 font-mono text-xs font-black border border-slate-800 rounded-lg">
+                        {noteTimeInput}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Note Editor Form */}
+                <form onSubmit={handleSaveNote} className="space-y-4 bg-slate-950/40 p-4 rounded-xl border border-slate-900">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {activeLecture?.type === 'video' && (
+                      <div className="sm:w-44 flex flex-col gap-1.5">
+                        <label className="text-[9px] font-extrabold uppercase text-slate-500 tracking-wider">Timestamp</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={noteTimeInput}
+                            onChange={(e) => setNoteTimeInput(e.target.value)}
+                            placeholder="MM:SS"
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono font-bold text-violet-400 focus:outline-none focus:border-violet-500 text-center"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const mins = Math.floor(playbackTime / 60).toString().padStart(2, '0');
+                              const secs = (playbackTime % 60).toString().padStart(2, '0');
+                              setNoteTimeInput(`${mins}:${secs}`);
+                            }}
+                            title="Capture current video frame"
+                            className="bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-slate-350 p-2 rounded-lg text-xs font-extrabold flex items-center justify-center cursor-pointer"
+                          >
+                            <FiBookmark />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <label className="text-[9px] font-extrabold uppercase text-slate-500 tracking-wider">Note Content</label>
+                      <textarea
+                        value={studentNotes}
+                        onChange={(e) => setStudentNotes(e.target.value)}
+                        placeholder="Type personal bookmark notes, code snippets, or annotations..."
+                        className="w-full h-16 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-650 focus:outline-none focus:border-violet-500 transition-colors resize-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={!studentNotes.trim()}
+                      className="bg-violet-600 hover:bg-violet-500 disabled:bg-slate-900 text-white disabled:text-slate-500 px-5 py-2.5 rounded-lg text-xs font-bold transition-all shadow-md shadow-violet-500/10 cursor-pointer"
+                    >
+                      Save Bookmark Note
+                    </button>
+                  </div>
+                </form>
+
+                {/* Saved Bookmark Cards Stack */}
+                <div className="space-y-3">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
+                    Saved Notes ({lectureNotes.length})
+                  </span>
+                  
+                  {lectureNotes.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-3 max-h-80 overflow-y-auto pr-1">
+                      {lectureNotes.map((note) => (
+                        <div key={note.id} className="p-3.5 rounded-xl bg-slate-950/30 border border-slate-900/60 hover:border-slate-800/80 transition-all flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-3">
+                            <button
+                              onClick={() => handleJumpToNoteTime(note.time)}
+                              title={`Jump video player to ${note.formattedTime}`}
+                              className="px-2 py-1 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/30 text-violet-400 font-mono text-[10px] font-black rounded-md flex items-center gap-1 transition-colors flex-shrink-0 cursor-pointer"
+                            >
+                              <FiPlayCircle className="w-3.5 h-3.5" />
+                              <span>{note.formattedTime}</span>
+                            </button>
+                            <p className="text-xs text-slate-350 leading-relaxed font-semibold pt-0.5 break-all">
+                              {note.text}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteNote(note.id)}
+                            title="Remove Note Bookmark"
+                            className="text-slate-650 hover:text-red-400 text-lg transition-colors cursor-pointer"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-10 text-center rounded-xl bg-slate-950/20 border border-dashed border-slate-850">
+                      <FiBookmark className="w-8 h-8 text-slate-800 mx-auto mb-2" />
+                      <p className="text-xs text-slate-500">No notes written for this lecture yet.</p>
+                      <p className="text-[10px] text-slate-600 mt-1">Capture timestamps and record summary checkpoints above.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="space-y-6">

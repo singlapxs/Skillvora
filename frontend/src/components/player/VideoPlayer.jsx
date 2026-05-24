@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Watermark } from './Watermark';
 import { FiShield, FiAlertOctagon, FiRotateCcw, FiCheckCircle } from 'react-icons/fi';
 
-export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title }) => {
+export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title, startTime = 0 }) => {
   const [blocked, setBlocked] = useState(false);
   const [blurActive, setBlurActive] = useState(false);
 
@@ -72,14 +72,21 @@ export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title }) => {
 
         {/* The Sandboxed IFrame */}
         {videoUrl ? (
-          <iframe
-            src={`${videoUrl}`}
-            className="w-full h-full border-none select-none"
-            allow="autoplay; fullscreen"
-            allowFullScreen
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-            title={title}
-          />
+          (() => {
+            const separator = videoUrl.includes('?') ? '&' : '?';
+            const iframeUrl = startTime > 0 ? `${videoUrl}${separator}start=${startTime}` : videoUrl;
+            return (
+              <iframe
+                key={iframeUrl}
+                src={iframeUrl}
+                className="w-full h-full border-none select-none"
+                allow="autoplay; fullscreen"
+                allowFullScreen
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                title={title}
+              />
+            );
+          })()
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 gap-2">
             <FiShield className="w-12 h-12 text-slate-700 animate-pulse" />
