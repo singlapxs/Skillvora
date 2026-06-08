@@ -33,7 +33,17 @@ export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title, startTi
   };
 
   const driveId = extractDriveId(videoUrl);
-  const directUrl = driveId ? `https://drive.google.com/uc?export=download&id=${driveId}` : videoUrl;
+  const apiKey = import.meta.env.VITE_GOOGLE_DRIVE_API_KEY;
+  
+  let directUrl = videoUrl;
+  if (driveId) {
+    if (apiKey) {
+      directUrl = `https://www.googleapis.com/drive/v3/files/${driveId}?alt=media&key=${apiKey}`;
+    } else {
+      directUrl = `https://drive.google.com/uc?export=download&id=${driveId}`;
+    }
+  }
+
   const previewUrl = driveId ? `https://drive.google.com/file/d/${driveId}/preview` : videoUrl;
 
   // Load saved settings
