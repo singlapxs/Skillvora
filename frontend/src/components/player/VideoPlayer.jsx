@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import ReactPlayer from 'react-player/youtube';
+import ReactPlayer from 'react-player';
 import { Watermark } from './Watermark';
 import { FiShield, FiCheckCircle } from 'react-icons/fi';
 
