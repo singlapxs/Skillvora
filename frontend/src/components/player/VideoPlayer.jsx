@@ -8,6 +8,29 @@ export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title, onProgr
   const [playbackRate, setPlaybackRate] = useState(1);
   const playerRef = useRef(null);
 
+  // Check if URL is YouTube
+  const isYouTube = videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'));
+
+  // Extract Drive ID for fallback
+  const extractDriveId = (url) => {
+    if (!url) return null;
+    const patterns = [
+      /\/file\/d\/([a-zA-Z0-9_-]+)/, 
+      /id=([a-zA-Z0-9_-]+)/,         
+      /\/d\/([a-zA-Z0-9_-]+)/        
+    ];
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+    return null;
+  };
+
+  const driveId = extractDriveId(videoUrl);
+  const previewUrl = driveId ? `https://drive.google.com/file/d/${driveId}/preview` : videoUrl;
+
   // Load saved settings
   useEffect(() => {
     const savedRate = localStorage.getItem('skillvora_playback_rate');
@@ -75,26 +98,38 @@ export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title, onProgr
         <Watermark />
 
         {videoUrl ? (
-          <ReactPlayer
-            ref={playerRef}
-            url={videoUrl}
-            width="100%"
-            height="100%"
-            controls={true}
-            playing={true}
-            playbackRate={playbackRate}
-            onPlaybackRateChange={handlePlaybackRateChange}
-            onProgress={handleProgress}
-            onEnded={onCompleted}
-            config={{
-              youtube: {
-                playerVars: { showinfo: 1, rel: 0, modestbranding: 1 }
-              }
-            }}
-            className="absolute top-0 left-0"
-          />
+          isYouTube ? (
+            <ReactPlayer
+              ref={playerRef}
+              url={videoUrl}
+              width="100%"
+              height="100%"
+              controls={true}
+              playing={true}
+              playbackRate={playbackRate}
+              onPlaybackRateChange={handlePlaybackRateChange}
+              onProgress={handleProgress}
+              onEnded={onCompleted}
+              config={{
+                youtube: {
+                  playerVars: { showinfo: 1, rel: 0, modestbranding: 1 }
+                }
+              }}
+              className="absolute top-0 left-0"
+            />
+          ) : (
+            <iframe
+              key={previewUrl}
+              src={previewUrl}
+              className="w-full h-full border-none select-none absolute top-0 left-0"
+              allow="autoplay; fullscreen"
+              allowFullScreen
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+              title={title}
+            />
+          )
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 gap-2">
+          <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 gap-2 absolute top-0 left-0">
             <FiShield className="w-12 h-12 text-slate-700 animate-pulse" />
             <p className="text-sm">Video feed offline. File link sharing must be allowed.</p>
           </div>
@@ -105,7 +140,9 @@ export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title, onProgr
         <div>
           <h2 className="text-lg font-bold text-slate-100">{title || 'Playing Lecture'}</h2>
           <p className="text-xs text-slate-500 mt-1">
-            YouTube API Sync Active. Auto-switching and note bookmarks are perfectly synced.
+            {isYouTube 
+              ? "YouTube API Sync Active. Auto-switching and note bookmarks are perfectly synced." 
+              : "Google Drive fallback active. Timer and API syncing are disabled for this lecture."}
           </p>
         </div>
 
