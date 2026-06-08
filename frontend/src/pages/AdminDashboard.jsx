@@ -40,6 +40,11 @@ export const AdminDashboard = () => {
   const [lectureModalMode, setLectureModalMode] = useState('single'); // 'single' | 'bulk'
   const [bulkInput, setBulkInput] = useState('');
 
+  const [showEditLectureModal, setShowEditLectureModal] = useState(false);
+  const [editLectureData, setEditLectureData] = useState({
+    _id: '', title: '', videoUrl: ''
+  });
+
   // Pull Analytics, pending, and catalogue data
   const fetchData = async () => {
     try {
@@ -229,6 +234,30 @@ export const AdminDashboard = () => {
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to add lecture');
+    }
+  };
+
+  const handleUpdateLecture = async (e) => {
+    e.preventDefault();
+    if (!editLectureData.title) return;
+
+    try {
+      const response = await api.put(`/courses/lectures/${editLectureData._id}`, {
+        title: editLectureData.title,
+        videoUrl: editLectureData.videoUrl
+      });
+      if (response.data.success) {
+        alert('Lesson updated successfully!');
+        setShowEditLectureModal(false);
+        setEditLectureData({ _id: '', title: '', videoUrl: '' });
+        
+        // Refresh detailed view
+        const detailRes = await api.get(`/courses/${selectedCourse._id}`);
+        setSelectedCourse(detailRes.data.data);
+        await fetchData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update lesson');
     }
   };
 
@@ -638,6 +667,22 @@ export const AdminDashboard = () => {
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        setEditLectureData({
+                                          _id: lec._id,
+                                          title: lec.title,
+                                          videoUrl: lec.videoUrl || lec.fileUrl || ''
+                                        });
+                                        setShowEditLectureModal(true);
+                                      }}
+                                      className="text-slate-500 hover:text-blue-400 transition-colors p-1 rounded-lg hover:bg-blue-500/10 cursor-pointer pointer-events-auto"
+                                      title="Edit Lesson"
+                                    >
+                                      <FiEdit className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         handleDeleteLecture(lec._id);
                                       }}
                                       className="text-slate-500 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-500/10 cursor-pointer pointer-events-auto"
@@ -1037,6 +1082,58 @@ export const AdminDashboard = () => {
                 className="bg-violet-600 hover:bg-violet-500 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all"
               >
                 {lectureModalMode === 'bulk' ? 'Save Lessons' : 'Save Lesson'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Edit Lecture Modal */}
+      {showEditLectureModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-6 overflow-y-auto">
+          <form onSubmit={handleUpdateLecture} className="max-w-md w-full glass-panel rounded-2xl p-6 border-slate-800 space-y-4 self-start my-8">
+            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+              <FiEdit className="text-violet-400" /> Edit Lesson URL
+            </h3>
+            
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Lesson Title</label>
+              <input
+                type="text" required
+                value={editLectureData.title}
+                onChange={(e) => setEditLectureData(prev => ({ ...prev, title: e.target.value }))}
+                className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-violet-400 uppercase tracking-widest flex items-center gap-1">
+                <FiLink /> Paste YouTube / GDrive Link
+              </label>
+              <input
+                type="url" required
+                value={editLectureData.videoUrl}
+                onChange={(e) => setEditLectureData(prev => ({ ...prev, videoUrl: e.target.value }))}
+                className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs text-slate-200 placeholder-slate-650 focus:outline-none"
+              />
+              <span className="text-[9px] text-slate-500 block leading-tight">
+                * Paste a valid YouTube or Google Drive URL here. The system will auto-sync the duration!
+              </span>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-slate-900">
+              <button
+                type="button"
+                onClick={() => setShowEditLectureModal(false)}
+                className="bg-slate-900 border border-slate-800 text-slate-300 px-4 py-2 rounded-xl text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-violet-600 hover:bg-violet-500 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all"
+              >
+                Update Lesson
               </button>
             </div>
           </form>
