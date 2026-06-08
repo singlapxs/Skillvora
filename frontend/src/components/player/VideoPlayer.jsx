@@ -106,7 +106,7 @@ export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title, onProgr
           isYouTube ? (
             <ReactPlayer
               ref={playerRef}
-              url={formattedUrl}
+              src={formattedUrl}
               width="100%"
               height="100%"
               controls={true}
