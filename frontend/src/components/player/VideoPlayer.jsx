@@ -5,6 +5,8 @@ import { FiShield, FiCheckCircle } from 'react-icons/fi';
 
 export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title, onProgress, startTime = 0 }) => {
   const [blocked, setBlocked] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const playerRef = useRef(null);
   // Check if URL is YouTube
   const isYouTube = videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'));
 
