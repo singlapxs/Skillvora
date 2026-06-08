@@ -3,38 +3,44 @@ const mongoose = require('mongoose');
 const axios = require('axios');
 const Lecture = require('./models/Lecture');
 
-const fetchDriveVideoDuration = async (videoUrl) => {
+const fetchYouTubeVideoDuration = async (videoUrl) => {
   try {
     if (!videoUrl || !process.env.GOOGLE_DRIVE_API_KEY) return null;
     
-    // Extract ID
-    let fileId = null;
+    // Extract YouTube ID
+    let videoId = null;
     const patterns = [
-      /\/file\/d\/([a-zA-Z0-9_-]+)/, 
-      /id=([a-zA-Z0-9_-]+)/,         
-      /\/d\/([a-zA-Z0-9_-]+)/        
+      /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i
     ];
     for (const pattern of patterns) {
       const match = videoUrl.match(pattern);
       if (match && match[1]) {
-        fileId = match[1];
+        videoId = match[1];
         break;
       }
     }
     
-    if (!fileId) return null;
+    if (!videoId) return null;
 
-    const res = await axios.get(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=videoMediaMetadata&key=${process.env.GOOGLE_DRIVE_API_KEY}`);
+    const res = await axios.get(`https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=contentDetails&key=${process.env.GOOGLE_DRIVE_API_KEY}`);
     
-    if (res.data && res.data.videoMediaMetadata && res.data.videoMediaMetadata.durationMillis) {
-      const totalSeconds = Math.floor(parseInt(res.data.videoMediaMetadata.durationMillis) / 1000);
-      const m = Math.floor(totalSeconds / 60);
-      const s = totalSeconds % 60;
+    if (res.data && res.data.items && res.data.items.length > 0) {
+      const durationIso = res.data.items[0].contentDetails.duration; // e.g. "PT15M33S"
+      
+      // Parse ISO 8601 duration
+      const match = durationIso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+      if (!match) return null;
+
+      let h = parseInt(match[1] || 0);
+      let m = parseInt(match[2] || 0);
+      let s = parseInt(match[3] || 0);
+      
+      m += h * 60; // convert hours to minutes
       return `${m}m ${s}s`;
     }
   } catch (error) {
     if (error.response && error.response.data && error.response.data.error) {
-      console.error(`[Error] ${error.response.data.error.message}`);
+      console.error(`[YouTube API Error] ${error.response.data.error.message}`);
     } else {
       console.error(`[Error]`, error.message);
     }
@@ -53,7 +59,7 @@ const updateAllDurations = async () => {
     console.log("Connected to MongoDB.");
 
     const lectures = await Lecture.find({ type: 'video' });
-    console.log(`Found ${lectures.length} video lectures. Updating durations...`);
+    console.log(`Found ${lectures.length} video lectures. Updating YouTube durations...`);
 
     let updatedCount = 0;
 
@@ -62,7 +68,7 @@ const updateAllDurations = async () => {
       if (!lec.videoUrl) continue;
 
       process.stdout.write(`[${i+1}/${lectures.length}] Fetching duration for "${lec.title}"... `);
-      const exactDuration = await fetchDriveVideoDuration(lec.videoUrl);
+      const exactDuration = await fetchYouTubeVideoDuration(lec.videoUrl);
       
       if (exactDuration) {
         lec.duration = exactDuration;
@@ -70,11 +76,11 @@ const updateAllDurations = async () => {
         console.log(`Updated to ${exactDuration}`);
         updatedCount++;
       } else {
-        console.log(`Failed to fetch.`);
+        console.log(`Failed to fetch (Check if it's a valid YouTube link).`);
       }
 
-      // Small 500ms delay to avoid hitting Google API rate limits
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Small 200ms delay
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
 
     console.log(`\nMigration Complete! Updated ${updatedCount} out of ${lectures.length} lectures.`);

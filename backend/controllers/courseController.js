@@ -6,39 +6,49 @@ const { convertToEmbedUrl } = require('../utils/driveHelper');
 const axios = require('axios');
 
 /**
- * Automatically fetch precise video duration from Google Drive API
+ * Automatically fetch precise video duration from YouTube Data API
  */
-const fetchDriveVideoDuration = async (videoUrl) => {
+const fetchYouTubeVideoDuration = async (videoUrl) => {
   try {
     if (!videoUrl || !process.env.GOOGLE_DRIVE_API_KEY) return null;
     
-    // Extract ID
-    let fileId = null;
+    // Extract YouTube ID
+    let videoId = null;
     const patterns = [
-      /\/file\/d\/([a-zA-Z0-9_-]+)/, 
-      /id=([a-zA-Z0-9_-]+)/,         
-      /\/d\/([a-zA-Z0-9_-]+)/        
+      /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i
     ];
     for (const pattern of patterns) {
       const match = videoUrl.match(pattern);
       if (match && match[1]) {
-        fileId = match[1];
+        videoId = match[1];
         break;
       }
     }
     
-    if (!fileId) return null;
+    if (!videoId) return null;
 
-    const res = await axios.get(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=videoMediaMetadata&key=${process.env.GOOGLE_DRIVE_API_KEY}`);
+    const res = await axios.get(`https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=contentDetails&key=${process.env.GOOGLE_DRIVE_API_KEY}`);
     
-    if (res.data && res.data.videoMediaMetadata && res.data.videoMediaMetadata.durationMillis) {
-      const totalSeconds = Math.floor(parseInt(res.data.videoMediaMetadata.durationMillis) / 1000);
-      const m = Math.floor(totalSeconds / 60);
-      const s = totalSeconds % 60;
+    if (res.data && res.data.items && res.data.items.length > 0) {
+      const durationIso = res.data.items[0].contentDetails.duration; // e.g. "PT15M33S"
+      
+      // Parse ISO 8601 duration
+      const match = durationIso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+      if (!match) return null;
+
+      let h = parseInt(match[1] || 0);
+      let m = parseInt(match[2] || 0);
+      let s = parseInt(match[3] || 0);
+      
+      m += h * 60; // convert hours to minutes
       return `${m}m ${s}s`;
     }
   } catch (error) {
-    console.error("[Drive API Error] Failed to fetch exact video duration:", error.message);
+    if (error.response && error.response.data && error.response.data.error) {
+      console.error(`[YouTube API Error] ${error.response.data.error.message}`);
+    } else {
+      console.error("[YouTube API Error] Failed to fetch exact video duration:", error.message);
+    }
   }
   return null;
 };
@@ -348,13 +358,11 @@ exports.createLecture = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Module not found.' });
     }
 
-    // Requirement 4 & 27: Process Google Drive URLs immediately into secure embeds
-    let parsedVideoUrl = videoUrl;
+    // Requirement 4 & 27: Process URLs
+    let parsedVideoUrl = videoUrl; // ReactPlayer takes raw YT link natively
     let parsedFileUrl = fileUrl;
 
-    if (type === 'video' && videoUrl) {
-      parsedVideoUrl = convertToEmbedUrl(videoUrl);
-    } else if (type === 'pdf' && fileUrl) {
+    if (type === 'pdf' && fileUrl) {
       parsedFileUrl = convertToEmbedUrl(fileUrl);
     }
 
@@ -362,7 +370,7 @@ exports.createLecture = async (req, res, next) => {
     let finalDuration = duration;
     if (!finalDuration || finalDuration === '0m') {
       if (type === 'video' && videoUrl) {
-        const exactDuration = await fetchDriveVideoDuration(videoUrl);
+        const exactDuration = await fetchYouTubeVideoDuration(videoUrl);
         finalDuration = exactDuration || estimateDuration(title);
       } else if (type === 'pdf') {
         finalDuration = '5m';
@@ -417,10 +425,7 @@ exports.updateLecture = async (req, res, next) => {
     if (duration) lecture.duration = duration;
     if (order !== undefined) lecture.order = order;
 
-    // Reprocess Drive Links if changed
-    if (videoUrl) {
-      lecture.videoUrl = convertToEmbedUrl(videoUrl);
-    }
+    // Reprocess Drive Links if changed (PDFs only)
     if (fileUrl) {
       lecture.fileUrl = convertToEmbedUrl(fileUrl);
     }
@@ -581,12 +586,10 @@ exports.bulkCreateLectures = async (req, res, next) => {
       }
 
       // Process URLs
-      let parsedVideoUrl = videoUrl;
+      let parsedVideoUrl = videoUrl; // ReactPlayer takes raw YT link natively
       let parsedFileUrl = fileUrl;
 
-      if (type === 'video' && videoUrl) {
-        parsedVideoUrl = convertToEmbedUrl(videoUrl);
-      } else if (type === 'pdf' && fileUrl) {
+      if (type === 'pdf' && fileUrl) {
         parsedFileUrl = convertToEmbedUrl(fileUrl);
       }
 
@@ -594,7 +597,7 @@ exports.bulkCreateLectures = async (req, res, next) => {
       let finalDuration = duration;
       if (!finalDuration || finalDuration === '0m') {
         if (type === 'video' && videoUrl) {
-          const exactDuration = await fetchDriveVideoDuration(videoUrl);
+          const exactDuration = await fetchYouTubeVideoDuration(videoUrl);
           finalDuration = exactDuration || estimateDuration(title);
         } else if (type === 'pdf') {
           finalDuration = '5m';

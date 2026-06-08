@@ -132,25 +132,20 @@ export const WatchCourse = () => {
     }
   }, [user, activeLecture]);
 
-  // Track playback time on video load
+  // Reset states on lecture change
   useEffect(() => {
     setPlaybackTime(0);
     setPlayerStartTime(0);
     setNoteTimeInput('00:00');
-    
-    if (activeLecture && activeLecture.type === 'video') {
-      const interval = setInterval(() => {
-        setPlaybackTime(prev => {
-          const next = prev + 1;
-          const mins = Math.floor(next / 60).toString().padStart(2, '0');
-          const secs = (next % 60).toString().padStart(2, '0');
-          setNoteTimeInput(`${mins}:${secs}`);
-          return next;
-        });
-      }, 1000);
-      return () => clearInterval(interval);
-    }
   }, [activeLecture]);
+
+  // Handle progress updates directly from ReactPlayer
+  const handleVideoProgress = (seconds) => {
+    setPlaybackTime(seconds);
+    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const secs = (Math.floor(seconds) % 60).toString().padStart(2, '0');
+    setNoteTimeInput(`${mins}:${secs}`);
+  };
 
   // Helpers for time formatting
   const formatSeconds = (seconds) => {
@@ -593,7 +588,8 @@ export const WatchCourse = () => {
                 onCompleted={handleMarkCompletedAndNext}
                 isCompleted={isLecCompleted}
                 title={activeLecture.title}
-                duration={activeLecture.duration}
+                onProgress={handleVideoProgress}
+                startTime={playerStartTime}
               />
             ) : (
               <PDFViewer
