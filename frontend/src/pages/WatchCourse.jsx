@@ -593,7 +593,7 @@ export const WatchCourse = () => {
                 onCompleted={handleMarkCompletedAndNext}
                 isCompleted={isLecCompleted}
                 title={activeLecture.title}
-                startTime={playerStartTime}
+                duration={activeLecture.duration}
               />
             ) : (
               <PDFViewer

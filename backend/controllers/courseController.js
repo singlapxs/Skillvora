@@ -3,6 +3,45 @@ const Module = require('../models/Module');
 const Lecture = require('../models/Lecture');
 const Category = require('../models/Category');
 const { convertToEmbedUrl } = require('../utils/driveHelper');
+const axios = require('axios');
+
+/**
+ * Automatically fetch precise video duration from Google Drive API
+ */
+const fetchDriveVideoDuration = async (videoUrl) => {
+  try {
+    if (!videoUrl || !process.env.GOOGLE_DRIVE_API_KEY) return null;
+    
+    // Extract ID
+    let fileId = null;
+    const patterns = [
+      /\/file\/d\/([a-zA-Z0-9_-]+)/, 
+      /id=([a-zA-Z0-9_-]+)/,         
+      /\/d\/([a-zA-Z0-9_-]+)/        
+    ];
+    for (const pattern of patterns) {
+      const match = videoUrl.match(pattern);
+      if (match && match[1]) {
+        fileId = match[1];
+        break;
+      }
+    }
+    
+    if (!fileId) return null;
+
+    const res = await axios.get(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=videoMediaMetadata&key=${process.env.GOOGLE_DRIVE_API_KEY}`);
+    
+    if (res.data && res.data.videoMediaMetadata && res.data.videoMediaMetadata.durationMillis) {
+      const totalSeconds = Math.floor(parseInt(res.data.videoMediaMetadata.durationMillis) / 1000);
+      const m = Math.floor(totalSeconds / 60);
+      const s = totalSeconds % 60;
+      return `${m}m ${s}s`;
+    }
+  } catch (error) {
+    console.error("[Drive API Error] Failed to fetch exact video duration:", error.message);
+  }
+  return null;
+};
 
 /**
  * Estimate dynamic lesson duration consistently based on title content
@@ -322,8 +361,9 @@ exports.createLecture = async (req, res, next) => {
     // Auto duration estimation trigger
     let finalDuration = duration;
     if (!finalDuration || finalDuration === '0m') {
-      if (type === 'video') {
-        finalDuration = estimateDuration(title);
+      if (type === 'video' && videoUrl) {
+        const exactDuration = await fetchDriveVideoDuration(videoUrl);
+        finalDuration = exactDuration || estimateDuration(title);
       } else if (type === 'pdf') {
         finalDuration = '5m';
       } else {
@@ -553,8 +593,9 @@ exports.bulkCreateLectures = async (req, res, next) => {
       // Estimating duration
       let finalDuration = duration;
       if (!finalDuration || finalDuration === '0m') {
-        if (type === 'video') {
-          finalDuration = estimateDuration(title);
+        if (type === 'video' && videoUrl) {
+          const exactDuration = await fetchDriveVideoDuration(videoUrl);
+          finalDuration = exactDuration || estimateDuration(title);
         } else if (type === 'pdf') {
           finalDuration = '5m';
         } else {
