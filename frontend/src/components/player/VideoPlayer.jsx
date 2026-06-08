@@ -5,11 +5,14 @@ import { FiShield, FiCheckCircle } from 'react-icons/fi';
 
 export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title, onProgress, startTime = 0 }) => {
   const [blocked, setBlocked] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState(1);
-  const playerRef = useRef(null);
-
   // Check if URL is YouTube
   const isYouTube = videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'));
+
+  // Ensure URL has https:// so ReactPlayer doesn't fail to recognize it
+  let formattedUrl = videoUrl;
+  if (isYouTube && formattedUrl && !formattedUrl.startsWith('http')) {
+    formattedUrl = `https://${formattedUrl}`;
+  }
 
   // Extract Drive ID for fallback
   const extractDriveId = (url) => {
@@ -101,7 +104,7 @@ export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title, onProgr
           isYouTube ? (
             <ReactPlayer
               ref={playerRef}
-              url={videoUrl}
+              url={formattedUrl}
               width="100%"
               height="100%"
               controls={true}
