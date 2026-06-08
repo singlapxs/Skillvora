@@ -141,9 +141,10 @@ export const WatchCourse = () => {
 
   // Handle progress updates directly from ReactPlayer
   const handleVideoProgress = (seconds) => {
-    setPlaybackTime(seconds);
-    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const secs = (Math.floor(seconds) % 60).toString().padStart(2, '0');
+    const validSeconds = isNaN(seconds) || seconds === null ? 0 : seconds;
+    setPlaybackTime(validSeconds);
+    const mins = Math.floor(validSeconds / 60).toString().padStart(2, '0');
+    const secs = (Math.floor(validSeconds) % 60).toString().padStart(2, '0');
     setNoteTimeInput(`${mins}:${secs}`);
   };
 
