@@ -38,7 +38,7 @@ export const VideoPlayer = ({ videoUrl, onCompleted, isCompleted, title, startTi
   let directUrl = videoUrl;
   if (driveId) {
     if (apiKey) {
-      directUrl = `https://www.googleapis.com/drive/v3/files/${driveId}?alt=media&key=${apiKey}`;
+      directUrl = `https://www.googleapis.com/drive/v3/files/${driveId}?alt=media&key=${apiKey}&acknowledgeAbuse=true`;
     } else {
       directUrl = `https://drive.google.com/uc?export=download&id=${driveId}`;
     }
